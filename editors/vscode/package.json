@@ -1,0 +1,59 @@
+{
+  "name": "safec",
+  "displayName": "SafeC",
+  "description": "Language support for SafeC (.sc files): syntax highlighting, diagnostics, hover, completion, and go-to-definition via sc-lsp.",
+  "version": "1.01.0",
+  "publisher": "mkaudio",
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Programming Languages", "Linters"],
+  "activationEvents": ["onLanguage:safec"],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "safec",
+        "aliases": ["SafeC", "safec"],
+        "extensions": [".sc"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "safec",
+        "scopeName": "source.safec",
+        "path": "./syntaxes/safec.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "SafeC",
+      "properties": {
+        "safec.server.path": {
+          "type": "string",
+          "default": "sc-lsp",
+          "description": "Path to the sc-lsp binary. Must be an absolute path or a binary on PATH."
+        },
+        "safec.server.args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Additional arguments passed to sc-lsp."
+        },
+        "safec.trace.server": {
+          "type": "string",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Trace LSP communication for debugging."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0"
+  },
+  "scripts": {
+    "package": "vsce package"
+  }
+}

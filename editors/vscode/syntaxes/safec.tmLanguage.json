@@ -1,0 +1,238 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "SafeC",
+  "scopeName": "source.safec",
+  "fileTypes": ["sc"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#preprocessor" },
+    { "include": "#strings" },
+    { "include": "#char-literals" },
+    { "include": "#numbers" },
+    { "include": "#region-qualifiers" },
+    { "include": "#keywords" },
+    { "include": "#builtins" },
+    { "include": "#types" },
+    { "include": "#operators" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.safec",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.safec",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "beginCaptures": { "0": { "name": "punctuation.definition.comment.begin.safec" } },
+          "endCaptures":   { "0": { "name": "punctuation.definition.comment.end.safec" } }
+        }
+      ]
+    },
+    "preprocessor": {
+      "patterns": [
+        {
+          "name": "meta.preprocessor.include.safec",
+          "match": "^\\s*(#\\s*include)\\s+([\"<][^\">]*[\">])",
+          "captures": {
+            "1": { "name": "keyword.control.import.safec" },
+            "2": { "name": "string.quoted.other.include.safec" }
+          }
+        },
+        {
+          "name": "meta.preprocessor.define.safec",
+          "match": "^\\s*(#\\s*(?:define|undef))\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.control.directive.safec" },
+            "2": { "name": "entity.name.constant.preprocessor.safec" }
+          }
+        },
+        {
+          "name": "meta.preprocessor.conditional.safec",
+          "match": "^\\s*(#\\s*(?:if|ifdef|ifndef|elif|else|endif|pragma))(.*)?$",
+          "captures": {
+            "1": { "name": "keyword.control.directive.safec" },
+            "2": { "name": "meta.preprocessor.expression.safec" }
+          }
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.safec",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.safec",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "char-literals": {
+      "name": "string.quoted.single.safec",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.safec",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.safec",
+          "match": "\\b0[xX][0-9a-fA-F]+[uUlL]*\\b"
+        },
+        {
+          "name": "constant.numeric.float.safec",
+          "match": "\\b[0-9]+\\.[0-9]*(?:[eE][+-]?[0-9]+)?[fF]?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.safec",
+          "match": "\\b[0-9]+[uUlL]*\\b"
+        }
+      ]
+    },
+    "region-qualifiers": {
+      "patterns": [
+        {
+          "name": "storage.modifier.region.safec",
+          "match": "&(stack|heap|static|arena)\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.safec",
+          "match": "\\b(if|else|while|for|do|return|break|continue|goto|switch|case|default|match|defer|errdefer|try)\\b"
+        },
+        {
+          "name": "keyword.control.safec",
+          "match": "\\b(if\\s+const)\\b"
+        },
+        {
+          "name": "keyword.other.safec",
+          "match": "\\b(region|unsafe|generic|new|arena_reset|spawn|join|operator|self|static_assert|capacity|pure|must_use|noreturn|naked|interrupt|section|asm|fn)\\b"
+        },
+        {
+          "name": "storage.modifier.safec",
+          "match": "\\b(const|consteval|static|extern|inline|typedef|volatile|restrict|auto|register|atomic|packed|thread_local|_Thread_local|__thread|align|__stdcall|__cdecl|__fastcall)\\b"
+        },
+        {
+          "name": "keyword.other.declaration.safec",
+          "match": "\\b(struct|union|enum|newtype|tuple)\\b"
+        },
+        {
+          "name": "constant.language.safec",
+          "match": "\\b(true|false|null|nullptr|none)\\b"
+        },
+        {
+          "name": "keyword.operator.sizeof.safec",
+          "match": "\\b(sizeof|alignof|typeof|fieldcount)\\b"
+        }
+      ]
+    },
+    "builtins": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.safec",
+          "match": "\\b(volatile_load|volatile_store|atomic_load|atomic_store|atomic_fetch_add|atomic_fetch_sub|atomic_exchange|atomic_cas|atomic_fence|chan_create|chan_send|chan_recv|chan_close|spawn_scoped)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.slice.safec",
+          "match": "\\[\\](?=[A-Za-z_])"
+        },
+        {
+          "name": "support.type.primitive.safec",
+          "match": "\\b(void|bool|char|int|float|double|float32|float64|int8|int16|int32|int64|uint8|uint16|uint32|uint64|long|short|unsigned|signed|size_t|ptrdiff_t)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.overflow.safec",
+          "match": "[+\\-*][|%]"
+        },
+        {
+          "name": "keyword.operator.fat-arrow.safec",
+          "match": "=>"
+        },
+        {
+          "name": "keyword.operator.arrow.safec",
+          "match": "->"
+        },
+        {
+          "name": "keyword.operator.scope.safec",
+          "match": "::"
+        },
+        {
+          "name": "keyword.operator.nullable-ref.safec",
+          "match": "\\?&"
+        },
+        {
+          "name": "keyword.operator.increment-decrement.safec",
+          "match": "\\+\\+|--"
+        },
+        {
+          "name": "keyword.operator.shift-assign.safec",
+          "match": "<<="
+        },
+        {
+          "name": "keyword.operator.shift-assign.safec",
+          "match": ">>="
+        },
+        {
+          "name": "keyword.operator.compound-assign.safec",
+          "match": "[+\\-*/%&|^]=|!="
+        },
+        {
+          "name": "keyword.operator.comparison.safec",
+          "match": "==|!=|<=|>="
+        },
+        {
+          "name": "keyword.operator.shift.safec",
+          "match": "<<|>>"
+        },
+        {
+          "name": "keyword.operator.logical.safec",
+          "match": "&&|\\|\\|"
+        },
+        {
+          "name": "keyword.operator.ellipsis.safec",
+          "match": "\\.\\.\\."
+        },
+        {
+          "name": "keyword.operator.range.safec",
+          "match": "\\.\\."
+        },
+        {
+          "name": "keyword.operator.safec",
+          "match": "[+\\-*/%&|^~!<>=?:]"
+        }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "name": "entity.name.function.safec",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()"
+        },
+        {
+          "name": "entity.name.type.safec",
+          "match": "\\b([A-Z][A-Za-z0-9_]*)\\b"
+        }
+      ]
+    }
+  }
+}
