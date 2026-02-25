@@ -2,8 +2,13 @@
   "name": "safec",
   "displayName": "SafeC",
   "description": "Language support for SafeC (.sc files): syntax highlighting, diagnostics, hover, completion, and go-to-definition via sc-lsp.",
-  "version": "1.01.0",
-  "publisher": "mkaudio",
+  "version": "1.0.0",
+  "publisher": "safec",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/safec-org/sc-language-server"
+  },
   "engines": { "vscode": "^1.75.0" },
   "categories": ["Programming Languages", "Linters"],
   "activationEvents": ["onLanguage:safec"],
