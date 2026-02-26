@@ -2,8 +2,8 @@
   "name": "safec",
   "displayName": "SafeC",
   "description": "Language support for SafeC (.sc files): syntax highlighting, diagnostics, hover, completion, and go-to-definition via sc-lsp.",
-  "version": "1.0.0",
-  "publisher": "safec",
+  "version": "1.0.1",
+  "publisher": "MinjaeKim",
   "license": "MIT",
   "repository": {
     "type": "git",
