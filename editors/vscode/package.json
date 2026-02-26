@@ -2,7 +2,7 @@
   "name": "safec-analyzer",
   "displayName": "SafeC Analyzer",
   "description": "Language support for SafeC (.sc files): syntax highlighting, diagnostics, hover, completion, and go-to-definition via sc-lsp.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "MinjaeKim",
   "license": "MIT",
   "repository": {
