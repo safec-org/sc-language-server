@@ -10,7 +10,8 @@ CHeaderImporter::CHeaderImporter(DiagEngine &diag) : diag_(diag) {
 }
 
 std::string CHeaderImporter::import(const std::string & /*headerName*/,
-                                    const std::vector<std::string> & /*includePaths*/) {
+                                    const std::vector<std::string> & /*includePaths*/,
+                                    SourceLocation /*loc*/) {
     return "";
 }
 
