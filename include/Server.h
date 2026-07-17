@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "Analysis.h"
 #include "nlohmann/json.hpp"
 
@@ -46,6 +47,16 @@ private:
     // ── State ─────────────────────────────────────────────────────────────────
     std::unordered_map<std::string, DocumentState> docs_;
     bool shutdownRequested_ = false;
+    // -I paths forwarded to the preprocessor for every analyze() call —
+    // defaults to the compiled-in stdlib path (SAFEC_STD_DIR, set by
+    // CMakeLists.txt from SAFEC_DIR/../std) so '#include <std/...>'
+    // resolves out of the box; extendable via initialize's
+    // initializationOptions.includePaths.
+    std::vector<std::string> includeDirs_{
+#ifdef SAFEC_STD_DIR
+        SAFEC_STD_DIR
+#endif
+    };
 };
 
 } // namespace lsp

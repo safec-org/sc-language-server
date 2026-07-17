@@ -68,7 +68,18 @@ void Server::run() {
 }
 
 // ── initialize ────────────────────────────────────────────────────────────────
-json Server::handleInitialize(const json &id, const json & /*params*/) {
+json Server::handleInitialize(const json &id, const json &params) {
+    // Let the client extend (not replace) the compiled-in stdlib include
+    // path — e.g. a workspace using a different SafeC checkout than the
+    // one this LSP binary was built against.
+    if (params.contains("initializationOptions")) {
+        const auto &opts = params["initializationOptions"];
+        if (opts.contains("includePaths") && opts["includePaths"].is_array()) {
+            for (const auto &p : opts["includePaths"]) {
+                if (p.is_string()) includeDirs_.push_back(p.get<std::string>());
+            }
+        }
+    }
     json caps = {
         {"textDocumentSync", TEXT_SYNC_FULL},
         {"hoverProvider", true},
@@ -194,7 +205,7 @@ void Server::analyzeAndPublish(const std::string &uri, const std::string &text) 
     auto &doc  = docs_[uri];
     doc.uri    = uri;
     doc.text   = text;
-    doc.result = lsp::analyze(uri, text);
+    doc.result = lsp::analyze(uri, text, includeDirs_);
     publishDiagnostics(uri, doc.result.diagnostics);
 }
 

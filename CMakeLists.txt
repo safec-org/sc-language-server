@@ -51,6 +51,18 @@ target_include_directories(sc-lsp PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 target_link_libraries(sc-lsp PRIVATE safec_frontend nlohmann_json)
+# Default -I path for '#include <std/...>' resolution. Preprocessor::
+# resolveInclude joins this directory with the include's full spelling
+# ("std/collections/vec.h"), so the path must be the *parent* of std/ (the
+# SafeC repo root, i.e. <SAFEC_DIR>/.. since SAFEC_DIR is .../SafeC/compiler
+# by default) — not std/ itself, which would resolve to a nonexistent
+# ".../std/std/collections/vec.h". Without this, the preprocessor has no
+# include path pointing at std/ at all, so every stdlib header fails to
+# resolve and analysis on any file that includes one stops at the #include
+# line. Server.cpp seeds Server::includeDirs_ with this path; a client can
+# still extend it via initializationOptions.includePaths.
+get_filename_component(SAFEC_STD_DIR_DEFAULT "${SAFEC_DIR}/.." ABSOLUTE)
+target_compile_definitions(sc-lsp PRIVATE SAFEC_STD_DIR="${SAFEC_STD_DIR_DEFAULT}")
 if(MSVC)
     target_compile_options(sc-lsp PRIVATE /W3)
 else()

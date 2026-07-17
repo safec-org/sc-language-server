@@ -27,6 +27,15 @@ static const char *kKeywords[] = {
     "spawn", "join", "defer", "errdefer", "match", "packed", "try",
     "must_use", "fn", "alignof", "typeof", "fieldcount",
     "trait", "fn_eval",
+    // Nullable-pointer / nullable-reference / optional (?T) vocabulary:
+    // 'some'/'none' are match-pattern identifiers (not general-expression
+    // constructors — see reference/types.md), and is_null()/is_none() are
+    // the safe presence checks required (alongside match/.default(...) or
+    // an explicit 'unsafe' block) before reading one of these types. None
+    // of these are reserved words in the grammar — they're resolved
+    // contextually by Sema against the receiver's type — but are listed
+    // here so they still surface in completion.
+    "is_null", "is_none", "some", "none",
     // C11 (superset completeness)
     "_Generic",
     // Bare-metal / effect system keywords
