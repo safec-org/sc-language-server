@@ -1,6 +1,10 @@
 #include "Server.h"
 #include <cstdio>
 #include <cstring>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 // sc-lsp: SafeC Language Server Protocol server.
 // Communicates over stdin/stdout using JSON-RPC 2.0 with Content-Length framing.
