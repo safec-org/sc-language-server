@@ -32,18 +32,18 @@ static const char *kKeywords[] = {
     "naked", "interrupt", "section", "noreturn", "asm", "pure",
     "atomic", "newtype", "align", "thread_local",
     "__stdcall", "__cdecl", "__fastcall",
-    // Types
-    "int8", "int16", "int32", "int64",
-    "uint8", "uint16", "uint32", "uint64",
-    "float32", "float64",
+    // Types — sized aliases keep the '_t' suffix (see
+    // Sema::registerBuiltinTypes in the compiler): there is no bare
+    // 'int32'/'uint32'/etc. type, and no 'float32'/'float64' at all (use
+    // 'float'/'double', already listed above under C keywords).
+    "int8_t", "int16_t", "int32_t", "int64_t",
+    "uint8_t", "uint16_t", "uint32_t", "uint64_t",
     // vec<T,N> — native SIMD vector type (contextual, parsed like a
     // generic type name rather than a reserved word, but listed here so
     // it still shows up in completion)
     "vec",
     // Alternate spellings
     "_Thread_local", "__thread",
-    // Constants
-    "nullptr", "none",
     // Region qualifiers (contextual)
     "stack", "heap", "arena", "capacity",
     // Built-in functions
