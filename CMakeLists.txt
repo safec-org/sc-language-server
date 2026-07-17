@@ -22,11 +22,15 @@ set(SAFEC_FRONTEND_SOURCES
 
 add_library(safec_frontend STATIC ${SAFEC_FRONTEND_SOURCES})
 target_include_directories(safec_frontend PUBLIC ${SAFEC_DIR}/include)
-target_compile_options(safec_frontend PRIVATE
-    -fno-exceptions
-    -fno-rtti
-    -Wall -Wextra -Wno-unused-parameter
-)
+if(MSVC)
+    target_compile_options(safec_frontend PRIVATE /W3 /EHs-c- /GR-)
+else()
+    target_compile_options(safec_frontend PRIVATE
+        -fno-exceptions
+        -fno-rtti
+        -Wall -Wextra -Wno-unused-parameter
+    )
+endif()
 # Silence LLVM-style macros that may appear in headers
 target_compile_definitions(safec_frontend PRIVATE SAFEC_NO_LLVM=1)
 
@@ -47,8 +51,12 @@ target_include_directories(sc-lsp PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 target_link_libraries(sc-lsp PRIVATE safec_frontend nlohmann_json)
-target_compile_options(sc-lsp PRIVATE
-    -Wall -Wextra -Wno-unused-parameter
-)
+if(MSVC)
+    target_compile_options(sc-lsp PRIVATE /W3)
+else()
+    target_compile_options(sc-lsp PRIVATE
+        -Wall -Wextra -Wno-unused-parameter
+    )
+endif()
 
 install(TARGETS sc-lsp DESTINATION bin)
