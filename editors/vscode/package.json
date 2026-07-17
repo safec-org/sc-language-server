@@ -18,7 +18,7 @@
       {
         "id": "safec",
         "aliases": ["SafeC", "safec"],
-        "extensions": [".sc"],
+        "extensions": [".sc", ".h"],
         "configuration": "./language-configuration.json"
       }
     ],

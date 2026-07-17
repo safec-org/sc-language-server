@@ -22,10 +22,12 @@ static const char *kKeywords[] = {
     "signed", "sizeof", "static", "struct", "switch", "typedef", "union",
     "unsigned", "void", "volatile", "while", "bool", "true", "false", "null",
     // SafeC extension keywords
-    "region", "unsafe", "consteval", "generic", "static_assert",
-    "self", "operator", "new", "arena_reset", "tuple",
+    "region", "unsafe", "consteval", "constinit", "generic", "static_assert",
+    "self", "operator", "new", "arena_reset", "tuple", "namespace",
     "spawn", "join", "defer", "errdefer", "match", "packed", "try",
     "must_use", "fn", "alignof", "typeof", "fieldcount",
+    // C11 (superset completeness)
+    "_Generic",
     // Bare-metal / effect system keywords
     "naked", "interrupt", "section", "noreturn", "asm", "pure",
     "atomic", "newtype", "align", "thread_local",
@@ -34,6 +36,10 @@ static const char *kKeywords[] = {
     "int8", "int16", "int32", "int64",
     "uint8", "uint16", "uint32", "uint64",
     "float32", "float64",
+    // vec<T,N> — native SIMD vector type (contextual, parsed like a
+    // generic type name rather than a reserved word, but listed here so
+    // it still shows up in completion)
+    "vec",
     // Alternate spellings
     "_Thread_local", "__thread",
     // Constants
@@ -43,9 +49,26 @@ static const char *kKeywords[] = {
     // Built-in functions
     "volatile_load", "volatile_store",
     "atomic_load", "atomic_store", "atomic_fetch_add", "atomic_fetch_sub",
-    "atomic_exchange", "atomic_cas", "atomic_fence",
+    "atomic_fetch_and", "atomic_fetch_or", "atomic_fetch_xor",
+    "atomic_exchange", "atomic_cas", "atomic_compare_exchange_strong",
+    "atomic_fence",
     "chan_create", "chan_send", "chan_recv", "chan_close",
     "spawn_scoped",
+    // GCC/Clang-style bit-manipulation built-ins
+    "__builtin_popcount", "__builtin_popcountll",
+    "__builtin_clz", "__builtin_clzll",
+    "__builtin_ctz", "__builtin_ctzll",
+    "__builtin_bswap32", "__builtin_bswap64",
+    // ARM Cortex-M4/M7 DSP-extension built-ins (ARM target only)
+    "__arm_dsp_qadd", "__arm_dsp_qsub",
+    "__arm_dsp_qadd16", "__arm_dsp_qadd8", "__arm_dsp_qsub16", "__arm_dsp_qsub8",
+    "__arm_dsp_sadd16", "__arm_dsp_sadd8", "__arm_dsp_ssub16", "__arm_dsp_ssub8",
+    "__arm_dsp_uqadd16", "__arm_dsp_uqadd8", "__arm_dsp_uqsub16", "__arm_dsp_uqsub8",
+    "__arm_dsp_smlad", "__arm_dsp_smladx", "__arm_dsp_smlsd", "__arm_dsp_smlsdx",
+    "__arm_dsp_smuad", "__arm_dsp_smuadx", "__arm_dsp_smusd", "__arm_dsp_smusdx",
+    "__arm_dsp_usad8", "__arm_dsp_usada8",
+    "__arm_dsp_ssat", "__arm_dsp_usat", "__arm_dsp_ssat16", "__arm_dsp_usat16",
+    "__arm_dsp_sxtab16", "__arm_dsp_uxtab16",
     // Compound keywords
     "if const", nullptr
 };

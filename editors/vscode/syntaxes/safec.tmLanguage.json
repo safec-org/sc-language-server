@@ -122,11 +122,11 @@
         },
         {
           "name": "storage.modifier.safec",
-          "match": "\\b(const|consteval|static|extern|inline|typedef|volatile|restrict|auto|register|atomic|packed|thread_local|_Thread_local|__thread|align|__stdcall|__cdecl|__fastcall)\\b"
+          "match": "\\b(const|consteval|constinit|static|extern|inline|typedef|volatile|restrict|auto|register|atomic|packed|thread_local|_Thread_local|__thread|align|__stdcall|__cdecl|__fastcall)\\b"
         },
         {
           "name": "keyword.other.declaration.safec",
-          "match": "\\b(struct|union|enum|newtype|tuple)\\b"
+          "match": "\\b(struct|union|enum|newtype|tuple|namespace)\\b"
         },
         {
           "name": "constant.language.safec",
@@ -134,7 +134,7 @@
         },
         {
           "name": "keyword.operator.sizeof.safec",
-          "match": "\\b(sizeof|alignof|typeof|fieldcount)\\b"
+          "match": "\\b(sizeof|alignof|typeof|fieldcount|_Generic)\\b"
         }
       ]
     },
@@ -142,7 +142,7 @@
       "patterns": [
         {
           "name": "support.function.builtin.safec",
-          "match": "\\b(volatile_load|volatile_store|atomic_load|atomic_store|atomic_fetch_add|atomic_fetch_sub|atomic_exchange|atomic_cas|atomic_fence|chan_create|chan_send|chan_recv|chan_close|spawn_scoped)\\b"
+          "match": "\\b(volatile_load|volatile_store|atomic_load|atomic_store|atomic_fetch_add|atomic_fetch_sub|atomic_fetch_and|atomic_fetch_or|atomic_fetch_xor|atomic_exchange|atomic_cas|atomic_compare_exchange_strong|atomic_fence|chan_create|chan_send|chan_recv|chan_close|spawn_scoped|__builtin_popcount|__builtin_popcountll|__builtin_clz|__builtin_clzll|__builtin_ctz|__builtin_ctzll|__builtin_bswap32|__builtin_bswap64|__arm_dsp_[a-z0-9]+)\\b"
         }
       ]
     },
@@ -155,6 +155,10 @@
         {
           "name": "support.type.primitive.safec",
           "match": "\\b(void|bool|char|int|float|double|float32|float64|int8|int16|int32|int64|uint8|uint16|uint32|uint64|long|short|unsigned|signed|size_t|ptrdiff_t)\\b"
+        },
+        {
+          "name": "support.type.simd.safec",
+          "match": "\\bvec(?=\\s*<)"
         }
       ]
     },
