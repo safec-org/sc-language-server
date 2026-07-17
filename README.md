@@ -38,6 +38,27 @@ cmake --build build
 # Binary: build/sc-lsp
 ```
 
+## Standard Library Resolution
+
+`#include <std/...>` is resolved against a default include path baked into
+the binary at build time: `<SAFEC_DIR>/..` (the SafeC repo root — the
+parent of both `compiler/` and `std/`), derived from the same `SAFEC_DIR`
+used to locate the frontend sources above. This means stdlib headers
+(hover, completion, diagnostics — including nullable/optional match-forcing
+errors, which are just `Sema` diagnostics like any other) resolve out of
+the box for a project sitting next to the SafeC checkout this binary was
+built against.
+
+If your project uses a different SafeC checkout (or the LSP binary was
+built elsewhere and copied), extend the search path per-client via
+`initialize`'s `initializationOptions`:
+
+```json
+{ "initializationOptions": { "includePaths": ["/path/to/other/SafeC"] } }
+```
+
+This is appended to (not a replacement for) the compiled-in default.
+
 ## File Types
 
 Both `.sc` (implementation) and `.h` (declaration) files are analyzed —
