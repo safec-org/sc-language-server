@@ -43,12 +43,12 @@ This extension is a thin client — it needs the `sc-lsp` server binary
 installed separately:
 
 ```bash
-git clone https://github.com/safec-org/SafeC.git && cd SafeC
-bash install.sh   # builds the compiler, stdlib, safeguard, and sc-lsp
+curl -fsSL https://raw.githubusercontent.com/safec-org/SafeC/main/install.sh | bash
 ```
 
-`install.sh` places `sc-lsp` on your `PATH` by default. If it isn't found
-automatically, point the extension at it explicitly (see Settings below).
+This installs a prebuilt `safec`/`safeguard`/`sc-lsp` release and places
+`sc-lsp` on your `PATH` by default. If it isn't found automatically, point
+the extension at it explicitly (see Settings below).
 
 ## Settings
 
