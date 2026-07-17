@@ -26,6 +26,7 @@ static const char *kKeywords[] = {
     "self", "operator", "new", "arena_reset", "tuple", "namespace",
     "spawn", "join", "defer", "errdefer", "match", "packed", "try",
     "must_use", "fn", "alignof", "typeof", "fieldcount",
+    "trait", "fn_eval",
     // C11 (superset completeness)
     "_Generic",
     // Bare-metal / effect system keywords
