@@ -23,7 +23,8 @@ static const char *kKeywords[] = {
     "unsigned", "void", "volatile", "while", "bool", "true", "false", "null",
     // SafeC extension keywords
     "region", "unsafe", "consteval", "constinit", "generic", "static_assert",
-    "self", "operator", "new", "arena_reset", "arena_destroy", "tuple", "namespace",
+    "self", "operator", "new", "arena_reset", "arena_destroy", "arena_mark",
+    "arena_free_to", "tuple", "namespace",
     "spawn", "join", "defer", "errdefer", "match", "packed", "try",
     "must_use", "fn", "alignof", "typeof", "fieldcount",
     "trait", "fn_eval",
