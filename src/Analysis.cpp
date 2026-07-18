@@ -23,7 +23,7 @@ static const char *kKeywords[] = {
     "unsigned", "void", "volatile", "while", "bool", "true", "false", "null",
     // SafeC extension keywords
     "region", "unsafe", "consteval", "constinit", "generic", "static_assert",
-    "self", "operator", "new", "arena_reset", "tuple", "namespace",
+    "self", "operator", "new", "arena_reset", "arena_destroy", "tuple", "namespace",
     "spawn", "join", "defer", "errdefer", "match", "packed", "try",
     "must_use", "fn", "alignof", "typeof", "fieldcount",
     "trait", "fn_eval",
@@ -64,6 +64,12 @@ static const char *kKeywords[] = {
     "atomic_fence",
     "chan_create", "chan_send", "chan_recv", "chan_close",
     "spawn_scoped",
+    // malloc_defer(n) isn't a real callable (no declared symbol anywhere —
+    // it's pure parser sugar recognized only as a var-decl initializer,
+    // expanding to alloc(n) + an injected 'defer dealloc(...)' at parse
+    // time), so it never surfaces via the live Sema-symbol completion path
+    // the way a real function would; listed here so it still autocompletes.
+    "malloc_defer",
     // GCC/Clang-style bit-manipulation built-ins
     "__builtin_popcount", "__builtin_popcountll",
     "__builtin_clz", "__builtin_clzll",
