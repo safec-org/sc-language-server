@@ -103,6 +103,11 @@
         {
           "name": "storage.modifier.region.safec",
           "match": "&(stack|heap|static|arena)\\b"
+        },
+        {
+          "comment": "Outliving reference: '&T' / '?&T' with no region keyword at all (see README 'Outliving references').",
+          "name": "storage.modifier.region.outliving.safec",
+          "match": "(\\?)?&(?!(stack|heap|static|arena)\\b)(?=\\s*[A-Za-z_])"
         }
       ]
     },
