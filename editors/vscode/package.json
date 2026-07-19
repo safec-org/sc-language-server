@@ -13,13 +13,18 @@
   "categories": ["Programming Languages", "Linters"],
   "activationEvents": ["onLanguage:safec"],
   "main": "./extension.js",
+  "icon": "icons/icon.png",
   "contributes": {
     "languages": [
       {
         "id": "safec",
         "aliases": ["SafeC", "safec"],
         "extensions": [".sc", ".h"],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/sc-file-icon.png",
+          "dark": "./icons/sc-file-icon.png"
+        }
       }
     ],
     "grammars": [
@@ -27,6 +32,13 @@
         "language": "safec",
         "scopeName": "source.safec",
         "path": "./syntaxes/safec.tmLanguage.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "safec-icons",
+        "label": "SafeC Icons",
+        "path": "./icons/safec-icon-theme.json"
       }
     ],
     "configuration": {

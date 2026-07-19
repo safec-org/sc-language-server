@@ -1,0 +1,15 @@
+{
+  "iconDefinitions": {
+    "_file": { "iconPath": "./generic-file.svg" },
+    "_folder": { "iconPath": "./generic-folder.svg" },
+    "_folder_open": { "iconPath": "./generic-folder-open.svg" },
+    "_sc_file": { "iconPath": "./sc-file-icon.png" }
+  },
+  "file": "_file",
+  "folder": "_folder",
+  "folderExpanded": "_folder_open",
+  "fileExtensions": {
+    "sc": "_sc_file"
+  },
+  "hidesExplorerArrows": false
+}
