@@ -201,11 +201,27 @@ json Server::handleDocumentSymbols(const json &id, const json &params) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// .scx (scx templating — see ScxTranspiler.h) is the one extension this
+// otherwise extension-agnostic server treats specially: raw markup isn't
+// valid SafeC syntax, so it has to be transpiled before analysis, then
+// diagnostics/symbol positions remapped back to the .scx buffer's own
+// coordinates (analyzeScx() does both). 'doc.text' still holds the
+// *original* .scx text either way — hover/definition's wordAt() runs
+// against whatever the client actually has open, and now that
+// doc.result's positions are back in that same buffer's coordinates,
+// nothing downstream of this function needs to know .scx exists at all.
+static bool hasExtension(const std::string &uri, const std::string &ext) {
+    if (uri.size() < ext.size()) return false;
+    return uri.compare(uri.size() - ext.size(), ext.size(), ext) == 0;
+}
+
 void Server::analyzeAndPublish(const std::string &uri, const std::string &text) {
     auto &doc  = docs_[uri];
     doc.uri    = uri;
     doc.text   = text;
-    doc.result = lsp::analyze(uri, text, includeDirs_);
+    doc.result = hasExtension(uri, ".scx")
+        ? lsp::analyzeScx(uri, text, includeDirs_)
+        : lsp::analyze(uri, text, includeDirs_);
     publishDiagnostics(uri, doc.result.diagnostics);
 }
 

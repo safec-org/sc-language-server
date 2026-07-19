@@ -7,6 +7,7 @@
 #include "safec/ConstEval.h"
 #include "safec/AST.h"
 #include "safec/Type.h"
+#include "ScxTranspiler.h"
 #include <sstream>
 #include <cctype>
 #include <algorithm>
@@ -123,18 +124,22 @@ std::string wordAt(const std::string &source, int line, int col) {
     return lineStr.substr(start, end - start);
 }
 
+// Extract a simple filename from a uri (strip directory + "file://").
+static std::string deriveFilename(const std::string &uri) {
+    std::string filename = uri;
+    auto slash = uri.rfind('/');
+    if (slash != std::string::npos) filename = uri.substr(slash + 1);
+    if (filename.rfind("file://", 0) == 0) filename = filename.substr(7);
+    return filename;
+}
+
 // ── analyze ───────────────────────────────────────────────────────────────────
 AnalysisResult analyze(const std::string &uri,
                        const std::string &source,
                        const std::vector<std::string> &includeDirs) {
     AnalysisResult result;
 
-    // Extract a simple filename from uri for diagnostics
-    std::string filename = uri;
-    auto slash = uri.rfind('/');
-    if (slash != std::string::npos) filename = uri.substr(slash + 1);
-    // Strip leading "file://" if present
-    if (filename.rfind("file://", 0) == 0) filename = filename.substr(7);
+    std::string filename = deriveFilename(uri);
 
     safec::DiagEngine diag(filename.c_str());
     diag.setSilent(true); // suppress stderr during IDE analysis
@@ -255,6 +260,127 @@ convert_diags:
         }
         result.diagnostics.push_back(std::move(lspD));
     }
+
+    return result;
+}
+
+// ── analyzeScx ────────────────────────────────────────────────────────────────
+AnalysisResult analyzeScx(const std::string &uri,
+                          const std::string &scxSource,
+                          const std::vector<std::string> &includeDirs) {
+    std::string filename = deriveFilename(uri);
+
+    std::vector<int> lineMap; // ScxTranspiler's map: un-flattened generated
+                              // line (pre-#include-expansion) -> orig .scx line
+    std::string generated;
+    try {
+        generated = safeguard::transpileScx(scxSource, filename, &lineMap);
+    } catch (std::exception &e) {
+        // Malformed markup — the transpiler's own message is
+        // "<filename>:<line>: scx: <detail>"; pull the line back out so
+        // this still lands as a positioned diagnostic instead of a
+        // generic line-1 error.
+        AnalysisResult result;
+        std::string msg = e.what();
+        int errLine = 1;
+        std::string prefix = filename + ":";
+        if (msg.rfind(prefix, 0) == 0) {
+            size_t p = prefix.size();
+            size_t q = msg.find(':', p);
+            if (q != std::string::npos) {
+                try { errLine = std::stoi(msg.substr(p, q - p)); } catch (...) {}
+            }
+        }
+        Diagnostic d;
+        d.range    = Range::point(errLine > 0 ? errLine - 1 : 0, 0);
+        d.message  = msg;
+        d.severity = DiagnosticSeverity::Error;
+        d.source   = "scx";
+        result.diagnostics.push_back(std::move(d));
+        return result;
+    }
+
+    // analyze() below re-preprocesses 'generated' from scratch, and
+    // safec's real Preprocessor expands '#include' textually (splices in
+    // the *entire* included file's own preprocessed content in place of
+    // the directive line — see Preprocessor::handleInclude) — so every
+    // line after an '#include' shifts by however many lines that
+    // expansion contributed, and lineMap (built against transpileScx's
+    // own un-flattened output) doesn't know about that shift at all.
+    // Every markup-using .scx file has exactly this shape: two
+    // auto-prepended '#include' lines, immediately followed by the user's
+    // own content — so measure that one expansion's line count directly
+    // (by preprocessing just those two lines with the same include search
+    // path) and undo it before consulting lineMap. This is exact for the
+    // common case (a .scx file with no '#include' of its own beyond the
+    // auto-prepended pair); an additional user-written '#include'
+    // elsewhere in the file would need its own correction this doesn't
+    // account for, so positions after one may drift — no worse than the
+    // same pre-existing limitation ordinary .sc files already have.
+    bool hasHeader = generated.rfind("#include <std/scx/scx.h>\n", 0) == 0;
+    int  includeOffset = 0; // (flattened line of first real content) - 3
+    if (hasHeader) {
+        // Preprocess 'generated' itself (the exact text analyze() below
+        // will also preprocess) and find where its own unflattened line 3
+        // — the first line of real content, right after the two
+        // auto-prepended includes — actually lands once those includes
+        // are expanded. Measuring against a separate, shorter probe
+        // (e.g. just the two include lines followed by a synthetic marker)
+        // was tried first and came up systematically one line short —
+        // apparently the exact splice shape (what, if anything, follows
+        // the includes) affects the included files' own trailing-newline
+        // handling — so this measures the real text directly instead of
+        // inferring from a stand-in.
+        std::string firstContentLine;
+        {
+            size_t nl1 = generated.find('\n');
+            size_t nl2 = (nl1 == std::string::npos) ? std::string::npos
+                                                     : generated.find('\n', nl1 + 1);
+            size_t nl3 = (nl2 == std::string::npos) ? std::string::npos
+                                                     : generated.find('\n', nl2 + 1);
+            if (nl2 != std::string::npos)
+                firstContentLine = generated.substr(
+                    nl2 + 1, nl3 == std::string::npos ? std::string::npos : nl3 - nl2 - 1);
+        }
+
+        safec::DiagEngine probeDiag(filename.c_str());
+        probeDiag.setSilent(true);
+        safec::PreprocOptions probeOpts;
+        probeOpts.importCHeaders = false;
+        probeOpts.includePaths   = includeDirs;
+        safec::Preprocessor probe(generated, filename, probeDiag, probeOpts);
+        std::string flat = probe.process();
+
+        auto anchorPos = firstContentLine.empty() ? std::string::npos
+                                                    : flat.find(firstContentLine);
+        if (anchorPos != std::string::npos) {
+            int anchorFlatLine = 1;
+            for (size_t k = 0; k < anchorPos; ++k) if (flat[k] == '\n') ++anchorFlatLine;
+            includeOffset = anchorFlatLine - 3;
+        }
+    }
+
+    AnalysisResult result = analyze(uri, generated, includeDirs);
+
+    // Undo the '#include' flattening shift, then look up lineMap[genLine]
+    // (1-indexed) -> original .scx line (1-indexed; see ScxTranspiler.h).
+    // Out-of-range clamps to the map's last entry rather than crashing.
+    auto remapLine = [&](int line0) {
+        int flatLine1 = line0 + 1;
+        int genLine1  = flatLine1;
+        if (hasHeader) {
+            genLine1 = (flatLine1 <= includeOffset + 2) ? 1 : flatLine1 - includeOffset;
+        }
+        if (genLine1 >= 1 && genLine1 < static_cast<int>(lineMap.size()))
+            return lineMap[genLine1] - 1;
+        return (lineMap.size() > 1 ? lineMap.back() : genLine1) - 1;
+    };
+    for (auto &d : result.diagnostics) {
+        d.range.start.line = remapLine(d.range.start.line);
+        d.range.end.line   = remapLine(d.range.end.line);
+        d.source = "scx";
+    }
+    for (auto &s : result.symbols) s.pos.line = remapLine(s.pos.line);
 
     return result;
 }

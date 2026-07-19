@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "SafeC",
   "scopeName": "source.safec",
-  "fileTypes": ["sc"],
+  "fileTypes": ["sc", "scx"],
   "patterns": [
     { "include": "#comments" },
     { "include": "#preprocessor" },

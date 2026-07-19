@@ -42,6 +42,22 @@ AnalysisResult analyze(const std::string &uri,
                        const std::string &source,
                        const std::vector<std::string> &includeDirs = {});
 
+// Same as analyze(), for a .scx buffer: transpiles `scxSource` (safeguard's
+// ScxTranspiler — see ScxTranspiler.h) to plain SafeC, runs analyze() on
+// the generated text, then remaps every diagnostic/symbol line number in
+// the result back to `scxSource`'s own line numbers using the transpiler's
+// line map, so diagnostics/hover/go-to-def/document-symbols all land in
+// the buffer the client actually has open rather than in generated code it
+// never sees. Column numbers are passed through unchanged (see
+// ScxTranspiler.h's line-map contract for why line-level mapping is the
+// right precision here — the whole file besides markup expansions is a
+// byte-for-byte copy, so columns already line up outside those spans).
+// If the markup itself is malformed, the transpiler's own "<file>:<line>:
+// scx: <msg>" error becomes a single diagnostic at that line.
+AnalysisResult analyzeScx(const std::string &uri,
+                          const std::string &scxSource,
+                          const std::vector<std::string> &includeDirs = {});
+
 // Return hover markdown for the symbol at (line, col) (0-based).
 std::optional<Hover> hover(const AnalysisResult &result,
                            const std::string &source,

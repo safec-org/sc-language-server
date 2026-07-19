@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SAFEC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../SafeC/compiler"
     CACHE PATH "SafeC compiler source directory")
+set(SAFEGUARD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../SafeC/safeguard"
+    CACHE PATH "safeguard source directory (for the .scx transpiler)")
 
 # ── SafeC frontend static library (no LLVM needed) ──────────────────────────
 set(SAFEC_FRONTEND_SOURCES
@@ -40,15 +42,21 @@ add_library(nlohmann_json INTERFACE)
 target_include_directories(nlohmann_json INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
 # ── LSP server executable ────────────────────────────────────────────────────
+# ScxTranspiler.cpp is referenced by path from the sibling safeguard
+# checkout (same pattern as safec_frontend's SAFEC_DIR above) rather than
+# vendored — one copy of the .scx transpiler, shared by 'safeguard build'
+# and the LSP, so the two can't drift out of sync with each other.
 add_executable(sc-lsp
     src/main.cpp
     src/Transport.cpp
     src/Analysis.cpp
     src/Server.cpp
+    ${SAFEGUARD_DIR}/src/ScxTranspiler.cpp
 )
 target_include_directories(sc-lsp PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+    ${SAFEGUARD_DIR}/include
 )
 target_link_libraries(sc-lsp PRIVATE safec_frontend nlohmann_json)
 # Default -I path for '#include <std/...>' resolution. Preprocessor::

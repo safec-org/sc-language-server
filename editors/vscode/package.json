@@ -1,7 +1,7 @@
 {
   "name": "safec-analyzer",
   "displayName": "SafeC Analyzer",
-  "description": "Language support for SafeC (.sc files): syntax highlighting, diagnostics, hover, completion, and go-to-definition via sc-lsp.",
+  "description": "Language support for SafeC (.sc, .scx files): syntax highlighting, diagnostics, hover, completion, and go-to-definition via sc-lsp.",
   "version": "1.2.0",
   "publisher": "MinjaeKim",
   "license": "MIT",
@@ -19,7 +19,7 @@
       {
         "id": "safec",
         "aliases": ["SafeC", "safec"],
-        "extensions": [".sc", ".h"],
+        "extensions": [".sc", ".h", ".scx"],
         "configuration": "./language-configuration.json",
         "icon": {
           "light": "./icons/sc-file-icon.png",

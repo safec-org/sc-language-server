@@ -1,6 +1,7 @@
 # sc-language-server
 
-Language Server Protocol (LSP) server for SafeC (`.sc` files).
+Language Server Protocol (LSP) server for SafeC (`.sc` files) and scx
+(`.scx` — SafeC's JSX/TSX/RSX-style HTML templating language) files.
 
 ## Features
 
@@ -29,8 +30,12 @@ eventually builds for.
 
 ## Building
 
-Requires: CMake 3.20+, C++17 compiler, and the SafeC compiler source tree
-at `../SafeC/compiler/` (or set `-DSAFEC_DIR=<path>`).
+Requires: CMake 3.20+, C++17 compiler, the SafeC compiler source tree at
+`../SafeC/compiler/` (or set `-DSAFEC_DIR=<path>`), and the safeguard
+source tree at `../SafeC/safeguard/` (or set `-DSAFEGUARD_DIR=<path>`) —
+the latter supplies `ScxTranspiler.cpp`, referenced by path rather than
+vendored so `safeguard build` and this server share exactly one copy of
+the `.scx` transpiler.
 
 ```bash
 cmake -S . -B build
@@ -73,6 +78,24 @@ below for how to resolve that; the general answer is that the *last*
 registered/loaded association wins, so install order matters, and you can
 always override the language mode per-file if a plain C header gets
 mis-detected as SafeC (or vice versa).
+
+### `.scx`
+
+Unlike `.h`, `.scx` isn't just handed to `analyze()` as-is — raw scx
+markup (`return <tag>...;`, see safec-docs' "scx Templating" page) isn't
+valid SafeC syntax, so it's transpiled first (the same transpiler
+`safeguard build` uses — see the Building section above), and every
+diagnostic/hover/definition/document-symbol position that comes back is
+mapped from the transpiled SafeC's line numbers back to the original
+`.scx` buffer's own lines before being sent to the client — the client
+never sees the generated code. This mapping is line-level, not
+column-level, and is exact for content outside a markup expansion; a
+diagnostic *inside* one (e.g. a type error on a `{expr}` interpolation)
+points at the line the enclosing `return <markup>;` statement starts on,
+not the exact sub-line the error occurred on. `didOpen`/`didChange` on a
+`.scx` document handle all of this automatically — there's nothing
+extension-specific for a client to configure beyond registering the file
+extension (already done in `editors/vscode/`).
 
 ## Editor Integration
 

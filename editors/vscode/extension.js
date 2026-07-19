@@ -19,7 +19,7 @@ function activate(context) {
     const clientOptions = {
         documentSelector: [{ scheme: 'file', language: 'safec' }],
         synchronize: {
-            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.sc'),
+            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.{sc,scx}'),
         },
         traceOutputChannel: vscode.window.createOutputChannel('SafeC LSP Trace'),
     };

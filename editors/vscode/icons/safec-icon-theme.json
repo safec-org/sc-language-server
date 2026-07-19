@@ -9,7 +9,8 @@
   "folder": "_folder",
   "folderExpanded": "_folder_open",
   "fileExtensions": {
-    "sc": "_sc_file"
+    "sc": "_sc_file",
+    "scx": "_sc_file"
   },
   "hidesExplorerArrows": false
 }
