@@ -168,13 +168,15 @@ static std::string displayType(const safec::TypePtr &t) {
         if (rt.region == safec::Region::Arena) s += "arena<" + rt.arenaName + "> ";
         else if (rt.region != safec::Region::Extern) s += safec::regionName(rt.region) + " ";
         if (!rt.mut) s += "const ";
+        if (rt.pointeeVolatile) s += "volatile ";
         return s + displayType(rt.base);
     }
     case safec::TypeKind::Optional:
         return "?" + displayType(static_cast<const safec::OptionalType &>(*t).inner);
     case safec::TypeKind::Pointer: {
         auto &pt = static_cast<const safec::PointerType &>(*t);
-        return (pt.isConst ? "const " : "") + displayType(pt.base) + "*";
+        return std::string(pt.isConst ? "const " : "") + (pt.pointeeVolatile ? "volatile " : "") +
+               displayType(pt.base) + "*";
     }
     default:
         return t->str();
@@ -311,7 +313,8 @@ AnalysisResult analyze(const std::string &uri,
             case safec::DeclKind::GlobalVar: {
                 auto *gv = static_cast<safec::GlobalVarDecl *>(d);
                 sym.kind    = SymKind::GlobalVar;
-                sym.typeStr = (gv->type ? gv->type->str() : "?") + " " + d->name;
+                sym.typeStr = std::string(gv->isVolatile ? "volatile " : "") +
+                              displayType(gv->type) + " " + d->name;
                 break;
             }
             case safec::DeclKind::TypeAlias:
