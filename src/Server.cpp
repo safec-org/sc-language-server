@@ -1,4 +1,5 @@
 #include "Server.h"
+#include <cctype>
 #include "Transport.h"
 #include "Protocol.h"
 #include <cstdio>
@@ -72,13 +73,26 @@ json Server::handleInitialize(const json &id, const json &params) {
     // Let the client extend (not replace) the compiled-in stdlib include
     // path — e.g. a workspace using a different SafeC checkout than the
     // one this LSP binary was built against.
-    if (params.contains("initializationOptions")) {
+    if (params.contains("initializationOptions") && params["initializationOptions"].is_object()) {
         const auto &opts = params["initializationOptions"];
-        if (opts.contains("includePaths") && opts["includePaths"].is_array()) {
-            for (const auto &p : opts["includePaths"]) {
-                if (p.is_string()) includeDirs_.push_back(p.get<std::string>());
-            }
-        }
+        auto strings = [&](const char *key, std::vector<std::string> &out) {
+            if (opts.contains(key) && opts[key].is_array())
+                for (const auto &v : opts[key])
+                    if (v.is_string()) out.push_back(v.get<std::string>());
+        };
+        strings("includePaths", settings_.includeDirs);
+        strings("features", settings_.features);
+        strings("provides", settings_.provides);
+        if (opts.contains("target") && opts["target"].is_string())
+            settings_.target = opts["target"].get<std::string>();
+        if (opts.contains("compatPreprocessor") && opts["compatPreprocessor"].is_boolean())
+            settings_.compat = opts["compatPreprocessor"].get<bool>() ? 1 : 0;
+        if (opts.contains("noDefaultFeatures") && opts["noDefaultFeatures"].is_boolean())
+            settings_.noDefaultFeatures = opts["noDefaultFeatures"].get<bool>();
+        if (opts.contains("defines") && opts["defines"].is_object())
+            for (auto it = opts["defines"].begin(); it != opts["defines"].end(); ++it)
+                settings_.defines[it.key()] = it.value().is_string()
+                    ? it.value().get<std::string>() : it.value().dump();
     }
     json caps = {
         {"textDocumentSync", TEXT_SYNC_FULL},
@@ -215,13 +229,31 @@ static bool hasExtension(const std::string &uri, const std::string &ext) {
     return uri.compare(uri.size() - ext.size(), ext.size(), ext) == 0;
 }
 
+// file:///a%20b/c.sc -> /a b/c.sc (Windows drive letters keep their colon).
+static std::string uriToPath(const std::string &uri) {
+    std::string s = uri.rfind("file://", 0) == 0 ? uri.substr(7) : uri;
+    std::string out;
+    for (size_t i = 0; i < s.size(); ++i) {
+        if (s[i] == '%' && i + 2 < s.size() &&
+            std::isxdigit((unsigned char)s[i + 1]) && std::isxdigit((unsigned char)s[i + 2])) {
+            out += (char)std::stoi(s.substr(i + 1, 2), nullptr, 16);
+            i += 2;
+        } else {
+            out += s[i];
+        }
+    }
+    if (out.size() > 2 && out[0] == '/' && out[2] == ':') out.erase(0, 1);   // /C:/x -> C:/x
+    return out;
+}
+
 void Server::analyzeAndPublish(const std::string &uri, const std::string &text) {
     auto &doc  = docs_[uri];
     doc.uri    = uri;
     doc.text   = text;
+    AnalysisOptions opts = optionsFor(uriToPath(uri), settings_);
     doc.result = hasExtension(uri, ".scx")
-        ? lsp::analyzeScx(uri, text, includeDirs_)
-        : lsp::analyze(uri, text, includeDirs_);
+        ? lsp::analyzeScx(uri, text, opts)
+        : lsp::analyze(uri, text, opts);
     publishDiagnostics(uri, doc.result.diagnostics);
 }
 

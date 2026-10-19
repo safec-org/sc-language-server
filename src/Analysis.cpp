@@ -133,11 +133,97 @@ static std::string deriveFilename(const std::string &uri) {
     return filename;
 }
 
+// The name as written in source: Sema mangles 'namespace std { f }' to
+// "std_f" and a method 'Vec::push' to "Vec_push"; strip those prefixes so
+// hover/completion/definition match what the user typed.
+static std::string sourceName(const safec::FunctionDecl &fn) {
+    std::string n = fn.name;
+    auto strip = [&](const std::string &prefix) {
+        if (!prefix.empty() && n.size() > prefix.size() + 1 &&
+            n.compare(0, prefix.size(), prefix) == 0 && n[prefix.size()] == '_')
+            n = n.substr(prefix.size() + 1);
+    };
+    strip(fn.namespaceName);
+    strip(fn.methodOwner);
+    return n;
+}
+
+// Type::str() for display: like the compiler's, but keeps a generic
+// struct's type arguments ("Vec<T>", not "Vec"), which the compiler's own
+// str() leaves off because it doubles as a mangling key.
+static std::string displayType(const safec::TypePtr &t) {
+    if (!t) return "?";
+    switch (t->kind) {
+    case safec::TypeKind::Struct: {
+        auto &st = static_cast<const safec::StructType &>(*t);
+        if (st.typeArgs.empty()) return t->str();
+        std::string s = "struct " + st.name + "<";
+        for (size_t i = 0; i < st.typeArgs.size(); ++i)
+            s += (i ? ", " : "") + displayType(st.typeArgs[i]);
+        return s + ">";
+    }
+    case safec::TypeKind::Reference: {
+        auto &rt = static_cast<const safec::ReferenceType &>(*t);
+        std::string s = rt.nullable ? "?&" : "&";
+        if (rt.region == safec::Region::Arena) s += "arena<" + rt.arenaName + "> ";
+        else if (rt.region != safec::Region::Extern) s += safec::regionName(rt.region) + " ";
+        if (!rt.mut) s += "const ";
+        return s + displayType(rt.base);
+    }
+    case safec::TypeKind::Optional:
+        return "?" + displayType(static_cast<const safec::OptionalType &>(*t).inner);
+    case safec::TypeKind::Pointer: {
+        auto &pt = static_cast<const safec::PointerType &>(*t);
+        return (pt.isConst ? "const " : "") + displayType(pt.base) + "*";
+    }
+    default:
+        return t->str();
+    }
+}
+
+// e.g. "generic<T> struct Vec<T> std::vec_with_cap(unsigned long cap)".
+static std::string signature(const safec::FunctionDecl &fn) {
+    std::string sig;
+    if (!fn.genericParams.empty()) {
+        sig += "generic<";
+        for (size_t i = 0; i < fn.genericParams.size(); ++i)
+            sig += (i ? ", " : "") + fn.genericParams[i].name;
+        sig += "> ";
+    }
+    sig += (fn.returnType ? displayType(fn.returnType) : std::string("void")) + " ";
+    if (!fn.namespaceName.empty()) sig += fn.namespaceName + "::";
+    if (!fn.methodOwner.empty()) sig += fn.methodOwner + "::";
+    sig += sourceName(fn) + "(";
+    bool first = true;
+    for (const auto &p : fn.params) {
+        if (p.name == "self") continue;   // implicit method receiver
+        if (!first) sig += ", ";
+        first = false;
+        sig += displayType(p.type);
+        if (!p.name.empty()) sig += " " + p.name;
+    }
+    if (fn.isVariadic) sig += first ? "..." : ", ...";
+    sig += ")";
+    if (fn.isConstMethod) sig += " const";
+    return sig;
+}
+
 // ── analyze ───────────────────────────────────────────────────────────────────
+// A location belongs to the open document when the line markers left it
+// on the document's own file; anything else came from an #include'd file.
+static bool inThisFile(const safec::SourceLocation &loc, const std::string &filename) {
+    return !loc.file || filename == loc.file;
+}
+
+static std::string fileUri(const std::string &path) {
+    return path.rfind("file://", 0) == 0 ? path : "file://" + path;
+}
+
 AnalysisResult analyze(const std::string &uri,
                        const std::string &source,
-                       const std::vector<std::string> &includeDirs) {
+                       const AnalysisOptions &opts) {
     AnalysisResult result;
+    result.uri = uri;
 
     std::string filename = deriveFilename(uri);
 
@@ -145,9 +231,15 @@ AnalysisResult analyze(const std::string &uri,
     diag.setSilent(true); // suppress stderr during IDE analysis
 
     // ── Preprocessor ──────────────────────────────────────────────────────────
+    // Same settings the safec driver derives from its command line (see
+    // ProjectConfig.h), minus the clang C-header import, which is too slow
+    // to run on every keystroke.
     safec::PreprocOptions popts;
-    popts.importCHeaders = false; // skip slow clang import in LSP mode
-    popts.includePaths   = includeDirs;
+    popts.importCHeaders = false;
+    popts.includePaths   = opts.includeDirs;
+    popts.compatMode     = opts.compat;
+    popts.freestanding   = opts.freestanding;
+    for (const auto &d : opts.defines) popts.cmdlineDefs[d.first] = d.second;
 
     safec::Preprocessor pp(source, filename, diag, popts);
     std::string preprocessed = pp.process();
@@ -169,8 +261,17 @@ AnalysisResult analyze(const std::string &uri,
 
         if (!tuOwned || diag.hasErrors()) goto convert_diags;
 
+        // ── Array sizes (const/consteval), as the driver does before Sema ──
+        {
+            safec::ConstEvalEngine arraySizeCE(*tuOwned, diag);
+            if (!arraySizeCE.resolveArraySizes() || diag.hasErrors()) goto convert_diags;
+        }
+
         // ── Sema ───────────────────────────────────────────────────────────────
         safec::Sema sema(*tuOwned, diag);
+        sema.setFreestanding(opts.freestanding);
+        sema.setPointerBits(opts.pointerBits);
+        for (const auto &n : opts.provides) sema.addProvidedFunction(n);
         sema.run(); // errors recorded but don't abort
 
         // ── Build SymbolInfo from TU decls ─────────────────────────────────────
@@ -180,7 +281,8 @@ AnalysisResult analyze(const std::string &uri,
 
             SymbolInfo sym;
             sym.name   = d->name;
-            sym.docUri = uri;
+            // A declaration from an #include'd header points at that header.
+            sym.docUri = inThisFile(d->loc, filename) ? uri : fileUri(d->loc.file);
             // Convert 1-based SafeC loc → 0-based LSP position
             sym.pos.line      = static_cast<int>(d->loc.line)   - 1;
             sym.pos.character = static_cast<int>(d->loc.col)    - 1;
@@ -191,13 +293,11 @@ AnalysisResult analyze(const std::string &uri,
             case safec::DeclKind::Function: {
                 auto *fn = static_cast<safec::FunctionDecl *>(d);
                 sym.kind = SymKind::Function;
-                if (fn->returnType)
-                    sym.typeStr = fn->returnType->str() + " " + fn->name + "(...)";
-                else
-                    sym.typeStr = fn->name + "(...)";
                 // Skip monomorphized generics (mangled names with __)
                 if (fn->name.size() >= 2 && fn->name[0] == '_' && fn->name[1] == '_')
                     continue;
+                sym.name    = sourceName(*fn);
+                sym.typeStr = signature(*fn);
                 break;
             }
             case safec::DeclKind::Struct:
@@ -249,6 +349,15 @@ convert_diags:
         lspD.range.start = {ln, col};
         lspD.range.end   = {ln, col + 1};
         lspD.message     = d.message;
+        if (!inThisFile(d.loc, filename)) {
+            // Raised inside an #include'd header: its line numbers mean
+            // nothing in this document, so report it at the top, naming
+            // where it really is.
+            lspD.range.start = {0, 0};
+            lspD.range.end   = {0, 1};
+            lspD.message = std::string("in ") + d.loc.file + ":" +
+                           std::to_string(d.loc.line) + ": " + d.message;
+        }
         switch (d.level) {
         case safec::DiagLevel::Note:
             lspD.severity = DiagnosticSeverity::Information; break;
@@ -267,7 +376,7 @@ convert_diags:
 // ── analyzeScx ────────────────────────────────────────────────────────────────
 AnalysisResult analyzeScx(const std::string &uri,
                           const std::string &scxSource,
-                          const std::vector<std::string> &includeDirs) {
+                          const AnalysisOptions &opts) {
     std::string filename = deriveFilename(uri);
 
     std::vector<int> lineMap; // ScxTranspiler's map: un-flattened generated
@@ -347,7 +456,7 @@ AnalysisResult analyzeScx(const std::string &uri,
         probeDiag.setSilent(true);
         safec::PreprocOptions probeOpts;
         probeOpts.importCHeaders = false;
-        probeOpts.includePaths   = includeDirs;
+        probeOpts.includePaths   = opts.includeDirs;
         safec::Preprocessor probe(generated, filename, probeDiag, probeOpts);
         std::string flat = probe.process();
 
@@ -360,7 +469,7 @@ AnalysisResult analyzeScx(const std::string &uri,
         }
     }
 
-    AnalysisResult result = analyze(uri, generated, includeDirs);
+    AnalysisResult result = analyze(uri, generated, opts);
 
     // Undo the '#include' flattening shift, then look up lineMap[genLine]
     // (1-indexed) -> original .scx line (1-indexed; see ScxTranspiler.h).
@@ -443,21 +552,24 @@ std::optional<Location> definition(const AnalysisResult &result,
     std::string word = wordAt(source, line, col);
     if (word.empty()) return std::nullopt;
 
+    // Prefer a declaration in this document over one from a header.
+    const SymbolInfo *best = nullptr;
     for (auto &sym : result.symbols) {
-        if (sym.name == word) {
-            Location loc;
-            loc.uri   = sym.docUri.empty() ? uri : sym.docUri;
-            loc.range = Range::point(sym.pos.line, sym.pos.character);
-            return loc;
-        }
+        if (sym.name != word) continue;
+        if (!best || (sym.docUri == uri && best->docUri != uri)) best = &sym;
     }
-    return std::nullopt;
+    if (!best) return std::nullopt;
+    Location loc;
+    loc.uri   = best->docUri.empty() ? uri : best->docUri;
+    loc.range = Range::point(best->pos.line, best->pos.character);
+    return loc;
 }
 
 // ── documentSymbols ──────────────────────────────────────────────────────────
 std::vector<DocumentSymbol> documentSymbols(const AnalysisResult &result) {
     std::vector<DocumentSymbol> syms;
     for (auto &s : result.symbols) {
+        if (!s.docUri.empty() && s.docUri != result.uri) continue;   // from a header
         DocumentSymbol ds;
         ds.name  = s.name;
         ds.range = Range::point(s.pos.line, s.pos.character);

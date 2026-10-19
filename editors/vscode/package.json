@@ -2,24 +2,38 @@
   "name": "safec-analyzer",
   "displayName": "SafeC Analyzer",
   "description": "Language support for SafeC (.sc, .scx files): syntax highlighting, diagnostics, hover, completion, and go-to-definition via sc-lsp.",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "publisher": "MinjaeKim",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/safec-org/sc-language-server"
   },
-  "engines": { "vscode": "^1.75.0" },
-  "categories": ["Programming Languages", "Linters"],
-  "activationEvents": ["onLanguage:safec"],
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:safec"
+  ],
   "main": "./extension.js",
   "icon": "icons/icon.png",
   "contributes": {
     "languages": [
       {
         "id": "safec",
-        "aliases": ["SafeC", "safec"],
-        "extensions": [".sc", ".h", ".scx"],
+        "aliases": [
+          "SafeC",
+          "safec"
+        ],
+        "extensions": [
+          ".sc",
+          ".h",
+          ".scx"
+        ],
         "configuration": "./language-configuration.json",
         "icon": {
           "light": "./icons/sc-file-icon.png",
@@ -51,15 +65,71 @@
         },
         "safec.server.args": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "description": "Additional arguments passed to sc-lsp."
         },
         "safec.trace.server": {
           "type": "string",
-          "enum": ["off", "messages", "verbose"],
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
           "default": "off",
           "description": "Trace LSP communication for debugging."
+        },
+        "safec.includePaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra -I directories (the SafeC root sc-lsp was built against is always searched)."
+        },
+        "safec.target": {
+          "type": "string",
+          "default": "",
+          "description": "Target to analyze for: a bare-metal alias (x86, x86_64, aarch32, aarch64, thumb, thumb2, arm-6m, arm-7m, arm-7em, arm-8m, rv32i, rv32e, rv64i, rv64e) or an LLVM triple. Empty = host. Sets pointer width (size_t) and freestanding mode."
+        },
+        "safec.compatPreprocessor": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null,
+          "description": "Force --compat-preprocessor on or off. Unset follows safeguard: on for tests/ and the standard library, off elsewhere."
+        },
+        "safec.defines": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Extra preprocessor defines, NAME -> VALUE."
+        },
+        "safec.features": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Package.toml features to enable in addition to \"default\" (each becomes SAFEC_FEATURE_<NAME>=1)."
+        },
+        "safec.noDefaultFeatures": {
+          "type": "boolean",
+          "default": false,
+          "description": "Don't start from the manifest's \"default\" feature."
+        },
+        "safec.provides": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Functions defined in another translation unit (e.g. a bare-metal runtime's malloc): no freestanding warning for them."
         }
       }
     }

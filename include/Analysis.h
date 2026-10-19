@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include "Protocol.h"
+#include "ProjectConfig.h"
 
 // Forward declarations from SafeC frontend
 namespace safec {
@@ -27,6 +28,7 @@ struct SymbolInfo {
 // ── AnalysisResult ───────────────────────────────────────────────────────────
 
 struct AnalysisResult {
+    std::string             uri;          // the analyzed document
     std::vector<Diagnostic> diagnostics;
     std::vector<SymbolInfo> symbols;
     // TU pointer is kept alive so hover/definition can walk it
@@ -37,10 +39,10 @@ struct AnalysisResult {
 
 // Run the full SafeC frontend (Preprocessor→Lexer→Parser→Sema) on `source`.
 // `uri` is used to construct definition Locations.
-// `includeDirs` are extra -I paths forwarded to the preprocessor.
+// `opts` carries what the safec driver would get from its command line.
 AnalysisResult analyze(const std::string &uri,
                        const std::string &source,
-                       const std::vector<std::string> &includeDirs = {});
+                       const AnalysisOptions &opts = {});
 
 // Same as analyze(), for a .scx buffer: transpiles `scxSource` (safeguard's
 // ScxTranspiler — see ScxTranspiler.h) to plain SafeC, runs analyze() on
@@ -56,7 +58,7 @@ AnalysisResult analyze(const std::string &uri,
 // scx: <msg>" error becomes a single diagnostic at that line.
 AnalysisResult analyzeScx(const std::string &uri,
                           const std::string &scxSource,
-                          const std::vector<std::string> &includeDirs = {});
+                          const AnalysisOptions &opts = {});
 
 // Return hover markdown for the symbol at (line, col) (0-based).
 std::optional<Hover> hover(const AnalysisResult &result,

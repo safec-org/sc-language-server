@@ -33,9 +33,9 @@ eventually builds for.
 Requires: CMake 3.20+, C++17 compiler, the SafeC compiler source tree at
 `../SafeC/compiler/` (or set `-DSAFEC_DIR=<path>`), and the safeguard
 source tree at `../SafeC/safeguard/` (or set `-DSAFEGUARD_DIR=<path>`) —
-the latter supplies `ScxTranspiler.cpp`, referenced by path rather than
-vendored so `safeguard build` and this server share exactly one copy of
-the `.scx` transpiler.
+the latter supplies `ScxTranspiler.cpp` and `Manifest.cpp`, referenced by
+path rather than vendored so `safeguard` and this server share exactly one
+copy of the `.scx` transpiler and the `Package.toml` parser.
 
 ```bash
 cmake -S . -B build
@@ -63,6 +63,49 @@ built elsewhere and copied), extend the search path per-client via
 ```
 
 This is appended to (not a replacement for) the compiled-in default.
+
+## Analysis Settings
+
+Each document is analyzed with the settings `safec` and `safeguard` would
+use for it, so the server reports exactly what a build would:
+
+- **Predefines** — the platform macro (`__linux__`/`__APPLE__`/`_WIN32`),
+  `__SIZEOF_POINTER__`, `__SAFEC_FREESTANDING__` for bare-metal targets,
+  and `__SAFEC_COMPAT_PREPROCESSOR__` in compat mode. Sema gets the same
+  pointer width, so `size_t` and the C-ABI argument rules match the target.
+- **Compat preprocessor** — on for files under the project's `tests/`
+  directory and for the standard library (safeguard compiles both with
+  `--compat-preprocessor`, e.g. for `ASSERT_*`), off elsewhere.
+- **Features** — the nearest `Package.toml` above the file is read and its
+  enabled `[features]` (starting from `default`) become
+  `SAFEC_FEATURE_<NAME>=1`, as `safeguard build` defines them.
+- **Headers** — diagnostics raised inside an `#include`d header are
+  reported at the top of the document with the header's own file:line;
+  go-to-definition on a library symbol opens the header; the outline lists
+  only the document's own declarations. Hover shows full signatures with
+  source-level names (`generic<T> struct Vec<T> std::vec_new()`), and
+  completion offers `vec_new` rather than the mangled `std_vec_new`.
+
+Override any of it per workspace through `initializationOptions` (the VS
+Code extension maps its `safec.*` settings onto these):
+
+```json
+{ "initializationOptions": {
+    "includePaths": ["/path/to/other/SafeC"],
+    "target": "arm-7em",
+    "compatPreprocessor": true,
+    "defines": { "BOARD_REV": "3" },
+    "features": ["backend"],
+    "noDefaultFeatures": false,
+    "provides": ["malloc", "free"]
+} }
+```
+
+`target` takes a bare-metal alias (`x86`, `x86_64`, `aarch32`, `aarch64`,
+`thumb`, `thumb2`, `arm-6m`, `arm-7m`, `arm-7em`, `arm-8m`, `rv32i`,
+`rv32e`, `rv64i`, `rv64e`) or an LLVM triple; bare-metal targets imply
+freestanding mode. `Package.toml` parsing reuses safeguard's own
+`Manifest.cpp`, referenced by path like the scx transpiler.
 
 ## File Types
 

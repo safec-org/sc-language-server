@@ -51,7 +51,11 @@ add_executable(sc-lsp
     src/Transport.cpp
     src/Analysis.cpp
     src/Server.cpp
+    src/ProjectConfig.cpp
     ${SAFEGUARD_DIR}/src/ScxTranspiler.cpp
+    # Package.toml parsing (for [features] defines), shared with safeguard
+    # for the same reason as the transpiler.
+    ${SAFEGUARD_DIR}/src/Manifest.cpp
 )
 target_include_directories(sc-lsp PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include

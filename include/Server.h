@@ -47,14 +47,13 @@ private:
     // ── State ─────────────────────────────────────────────────────────────────
     std::unordered_map<std::string, DocumentState> docs_;
     bool shutdownRequested_ = false;
-    // -I paths forwarded to the preprocessor for every analyze() call —
-    // defaults to the compiled-in stdlib path (SAFEC_STD_DIR, set by
-    // CMakeLists.txt from SAFEC_DIR/../std) so '#include <std/...>'
-    // resolves out of the box; extendable via initialize's
-    // initializationOptions.includePaths.
-    std::vector<std::string> includeDirs_{
+    // Workspace settings (initializationOptions, see ProjectConfig.h).
+    // includeDirs starts with the compiled-in SafeC root (SAFEC_STD_DIR, the
+    // parent of std/, set by CMakeLists.txt) so '#include <std/...>'
+    // resolves out of the box; includePaths extends it.
+    ServerSettings settings_{
 #ifdef SAFEC_STD_DIR
-        SAFEC_STD_DIR
+        {SAFEC_STD_DIR}
 #endif
     };
 };
