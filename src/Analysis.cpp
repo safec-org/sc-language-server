@@ -77,6 +77,8 @@ static const char *kKeywords[] = {
     "__builtin_clz", "__builtin_clzll",
     "__builtin_ctz", "__builtin_ctzll",
     "__builtin_bswap32", "__builtin_bswap64",
+    // Floating-point built-ins (float, double, vec<float/double, N>)
+    "__builtin_fmuladd", "__builtin_sqrt",
     // ARM Cortex-M4/M7 DSP-extension built-ins (ARM target only)
     "__arm_dsp_qadd", "__arm_dsp_qsub",
     "__arm_dsp_qadd16", "__arm_dsp_qadd8", "__arm_dsp_qsub16", "__arm_dsp_qsub8",
