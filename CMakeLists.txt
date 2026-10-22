@@ -21,6 +21,14 @@ set(SAFEC_FRONTEND_SOURCES
     ${SAFEC_DIR}/src/Clone.cpp
     ${SAFEC_DIR}/src/ConstEval.cpp
 )
+# Frontend sources newer SafeC checkouts have: the heap/arena lifetime
+# analysis Sema::run() calls (SafeC#52). Added when present, so this builds
+# against a SafeC from before and after it.
+foreach(src MemoryFlow.cpp)
+    if(EXISTS ${SAFEC_DIR}/src/${src})
+        list(APPEND SAFEC_FRONTEND_SOURCES ${SAFEC_DIR}/src/${src})
+    endif()
+endforeach()
 
 add_library(safec_frontend STATIC ${SAFEC_FRONTEND_SOURCES})
 target_include_directories(safec_frontend PUBLIC ${SAFEC_DIR}/include)
