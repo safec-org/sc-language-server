@@ -61,6 +61,15 @@ std::string featureMacro(const std::string &name) {
     return upper;
 }
 
+// [build] compat_preprocessor, on a SafeC whose safeguard Manifest has the
+// field (older ones don't; then it's off, as safeguard itself had no key).
+template <class M>
+auto manifestCompatPreprocessor(const M &m, int) -> decltype(bool(m.build.compatPreprocessor)) {
+    return m.build.compatPreprocessor;
+}
+template <class M>
+bool manifestCompatPreprocessor(const M &, long) { return false; }
+
 } // namespace
 
 TargetInfo targetInfo(const std::string &target) {
@@ -102,29 +111,33 @@ AnalysisOptions optionsFor(const std::string &path, const ServerSettings &settin
     fs::path file = fs::path(path).lexically_normal();
     fs::path root = findProjectRoot(file.parent_path());
 
+    bool manifestCompat = false;
+    if (!root.empty()) {
+        try {
+            safeguard::Manifest m = safeguard::ManifestParser::parseFile((root / "Package.toml").string());
+            for (const auto &f : safeguard::resolveFeatures(m, settings.features, settings.noDefaultFeatures))
+                o.defines[featureMacro(f)] = "1";
+            manifestCompat = manifestCompatPreprocessor(m, 0);
+        } catch (...) {
+            // A malformed manifest is safeguard's error to report; analyze
+            // the file without feature defines rather than not at all.
+        }
+    }
+
     // safeguard compiles tests/ and the standard library with
     // --compat-preprocessor (they use ASSERT_* and similar macros), and the
-    // project's own sources without it.
+    // project's own sources with it only when Package.toml sets
+    // [build] compat_preprocessor = true (e.g. for std/async's coroutine
+    // macros).
     if (settings.compat >= 0) {
         o.compat = settings.compat != 0;
     } else {
         bool inStd = false;
         for (const auto &inc : settings.includeDirs)
             if (isUnder(file, fs::path(inc) / "std")) inStd = true;
-        o.compat = inStd || isUnder(file, root / "tests");
+        o.compat = inStd || isUnder(file, root / "tests") || manifestCompat;
     }
     if (o.compat) o.defines["__SAFEC_COMPAT_PREPROCESSOR__"] = "1";
-
-    if (!root.empty()) {
-        try {
-            safeguard::Manifest m = safeguard::ManifestParser::parseFile((root / "Package.toml").string());
-            for (const auto &f : safeguard::resolveFeatures(m, settings.features, settings.noDefaultFeatures))
-                o.defines[featureMacro(f)] = "1";
-        } catch (...) {
-            // A malformed manifest is safeguard's error to report; analyze
-            // the file without feature defines rather than not at all.
-        }
-    }
 
     for (const auto &d : settings.defines) o.defines[d.first] = d.second;
     return o;

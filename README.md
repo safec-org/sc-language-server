@@ -75,7 +75,9 @@ use for it, so the server reports exactly what a build would:
   pointer width, so `size_t` and the C-ABI argument rules match the target.
 - **Compat preprocessor** — on for files under the project's `tests/`
   directory and for the standard library (safeguard compiles both with
-  `--compat-preprocessor`, e.g. for `ASSERT_*`), off elsewhere.
+  `--compat-preprocessor`, e.g. for `ASSERT_*`), and for all of a project's
+  files when its `Package.toml` sets `[build] compat_preprocessor = true`
+  (e.g. for std/async's coroutine macros); off elsewhere.
 - **Features** — the nearest `Package.toml` above the file is read and its
   enabled `[features]` (starting from `default`) become
   `SAFEC_FEATURE_<NAME>=1`, as `safeguard build` defines them.
