@@ -5,7 +5,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SAFEC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../SafeC/compiler"
     CACHE PATH "SafeC compiler source directory")
-set(SAFEGUARD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../SafeC/safeguard"
+# Defaults to the safeguard/ beside SAFEC_DIR (both live in the SafeC
+# repo), so -DSAFEC_DIR=<SafeC>/compiler alone is enough wherever the
+# checkout is.
+get_filename_component(SAFEGUARD_DIR_DEFAULT "${SAFEC_DIR}/../safeguard" ABSOLUTE)
+set(SAFEGUARD_DIR "${SAFEGUARD_DIR_DEFAULT}"
     CACHE PATH "safeguard source directory (for the .scx transpiler)")
 
 # ── SafeC frontend static library (no LLVM needed) ──────────────────────────

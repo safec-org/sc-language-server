@@ -32,7 +32,8 @@ eventually builds for.
 
 Requires: CMake 3.20+, C++17 compiler, the SafeC compiler source tree at
 `../SafeC/compiler/` (or set `-DSAFEC_DIR=<path>`), and the safeguard
-source tree at `../SafeC/safeguard/` (or set `-DSAFEGUARD_DIR=<path>`) —
+source tree beside it (`<SAFEC_DIR>/../safeguard`, or set
+`-DSAFEGUARD_DIR=<path>`) —
 the latter supplies `ScxTranspiler.cpp` and `Manifest.cpp`, referenced by
 path rather than vendored so `safeguard` and this server share exactly one
 copy of the `.scx` transpiler and the `Package.toml` parser.
