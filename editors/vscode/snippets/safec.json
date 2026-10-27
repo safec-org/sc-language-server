@@ -1,0 +1,112 @@
+{
+  "main with Vec": {
+    "prefix": "mainvec",
+    "description": "main() with a std Vec (dropped by defer)",
+    "body": [
+      "#include <std/collections/vec.h>",
+      "",
+      "int main() {",
+      "\tstruct Vec<${1:int}> ${2:v} = Vec::new();",
+      "\tdefer ${2:v}.drop();",
+      "\t${2:v}.push(${3:1});",
+      "\t$0",
+      "\treturn 0;",
+      "}"
+    ]
+  },
+  "String": {
+    "prefix": "string",
+    "description": "A std String from a literal, dropped by defer",
+    "body": [
+      "struct String ${1:s} = String::from(\"${2}\");",
+      "defer ${1:s}.drop();",
+      "$0"
+    ]
+  },
+  "Drop struct": {
+    "prefix": "dropstruct",
+    "description": "A struct with a destructor (a Drop type)",
+    "body": [
+      "struct ${1:Name} {",
+      "\t${2:int fd;}",
+      "\tvoid drop();",
+      "};",
+      "",
+      "void ${1:Name}::drop() {",
+      "\t$0",
+      "}"
+    ]
+  },
+  "consume method": {
+    "prefix": "consume",
+    "description": "A method that destroys its receiver ('consume')",
+    "body": [
+      "${1:int} ${2:close}() consume;"
+    ]
+  },
+  "generic struct with conditional drop": {
+    "prefix": "genericdrop",
+    "description": "A generic wrapper that is a Drop type only when its payload is",
+    "body": [
+      "generic<${1:T}>",
+      "struct ${2:Box} {",
+      "\t?&heap ${1:T} ${3:p};",
+      "\tvoid drop() if (needs_drop(${1:T}));",
+      "};"
+    ]
+  },
+  "thread-safety marker": {
+    "prefix": "impl",
+    "description": "Promise (unsafe impl) or withdraw (impl !) Send/Sync in a struct body",
+    "body": [
+      "${1|unsafe impl Send + Sync,unsafe impl Send,unsafe impl Sync,impl !Send,impl !Sync|};"
+    ]
+  },
+  "match optional value": {
+    "prefix": "matchsome",
+    "description": "match on a ?T",
+    "body": [
+      "match (${1:opt}) {",
+      "\tcase some(${2:v}): $0",
+      "\tcase none: {}",
+      "}"
+    ]
+  },
+  "match nullable reference": {
+    "prefix": "matchref",
+    "description": "match on a ?&T",
+    "body": [
+      "match (${1:ref}) {",
+      "\tcase some(${2:p}): $0",
+      "\tcase null: {}",
+      "}"
+    ]
+  },
+  "slice loop": {
+    "prefix": "forslice",
+    "description": "Loop over a []const T",
+    "body": [
+      "for (unsigned long ${1:i} = 0UL; ${1:i} < ${2:xs}.len; ${1:i} = ${1:i} + 1UL) {",
+      "\t$0",
+      "}"
+    ]
+  },
+  "spawn_scoped": {
+    "prefix": "spawnscoped",
+    "description": "Lend a local to a thread and join it",
+    "body": [
+      "long long ${1:h} = spawn_scoped(${2:worker}, &${3:data});",
+      "$0",
+      "join(${1:h});"
+    ]
+  },
+  "unsafe block": {
+    "prefix": "unsafe",
+    "description": "unsafe { }",
+    "body": [
+      "unsafe {",
+      "\t$0",
+      "}"
+    ]
+  }
+}

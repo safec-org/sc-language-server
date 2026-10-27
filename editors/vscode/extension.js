@@ -5,7 +5,7 @@ const { LanguageClient, TransportKind } = require('vscode-languageclient/node');
 
 let client;
 
-function activate(context) {
+function startClient() {
     const config = vscode.workspace.getConfiguration('safec');
     const serverPath = config.get('server.path') || 'sc-lsp';
     const serverArgs = config.get('server.args') || [];
@@ -19,9 +19,9 @@ function activate(context) {
     const clientOptions = {
         documentSelector: [{ scheme: 'file', language: 'safec' }],
         synchronize: {
-            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.{sc,scx}'),
+            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.{sc,scx,h}'),
         },
-        traceOutputChannel: vscode.window.createOutputChannel('SafeC LSP Trace'),
+        traceOutputChannel: traceChannel,
         initializationOptions: analysisSettings(config),
     };
 
@@ -31,14 +31,23 @@ function activate(context) {
         serverOptions,
         clientOptions
     );
+    return client.start();
+}
 
-    client.start();
+let traceChannel;
 
-    // initializationOptions are sent once; restart the server when they change.
+function activate(context) {
+    traceChannel = vscode.window.createOutputChannel('SafeC LSP Trace');
+    context.subscriptions.push(traceChannel);
+    startClient();
+
+    // initializationOptions are sent once; restart the server when they
+    // change. (Registered once: activate() isn't re-run for a restart.)
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('safec') && client) {
-            client.stop().then(() => activate(context));
-        }
+        if (!e.affectsConfiguration('safec')) return;
+        const old = client;
+        client = undefined;
+        (old ? old.stop() : Promise.resolve()).then(startClient, startClient);
     }));
 }
 

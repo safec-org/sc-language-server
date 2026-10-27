@@ -43,26 +43,35 @@ cmake --build build
 # Binary: build/sc-lsp
 ```
 
-## Standard Library Resolution
+## Include Paths
 
-`#include <std/...>` is resolved against a default include path baked into
-the binary at build time: `<SAFEC_DIR>/..` (the SafeC repo root — the
-parent of both `compiler/` and `std/`), derived from the same `SAFEC_DIR`
-used to locate the frontend sources above. This means stdlib headers
-(hover, completion, diagnostics — including nullable/optional match-forcing
-errors, which are just `Sema` diagnostics like any other) resolve out of
-the box for a project sitting next to the SafeC checkout this binary was
-built against.
+The include path is the one `safeguard` passes `safec`:
 
-If your project uses a different SafeC checkout (or the LSP binary was
-built elsewhere and copied), extend the search path per-client via
-`initialize`'s `initializationOptions`:
+- **The SafeC root** — the parent of `std/`, so `#include <std/...>`
+  resolves and `<math.h>`, `<time.h>`, `<stdint.h>` & co. stay the C
+  library's (std/ itself is never on the path). It is found as safeguard
+  finds std/: `$SAFEC_HOME` when it holds a `std/`, else the installation
+  `sc-lsp` runs from (`<prefix>/bin/sc-lsp` beside `<prefix>/std`, the
+  release/`install.sh` layout), else the SafeC checkout the binary was
+  built against (`<SAFEC_DIR>/..`, baked in at build time).
+- **The project's `include/`** and its `[dependencies]`' header
+  directories (a SafeC source package's `include/` and `src/`, a library's
+  `include/`, or its `include = [...]`), when the file is inside a
+  `Package.toml` project.
+- A quoted `#include "x.h"` is found next to the file first.
+- **C headers** (`<stdio.h>`, `<math.h>`, ...) are imported the way safec
+  imports them: the server runs `safec --dump-pp` on `#include <hdr>` once
+  per header (cached for the session) and uses the C declarations the
+  compiler's clang-based importer produced. The `safec` used is `$SAFEC`,
+  else `$SAFEC_HOME/bin/safec` or `$SAFEC_HOME/compiler/build/safec`, else
+  the one beside `sc-lsp`, else the build-time checkout's, else `safec` on
+  `PATH`.
+
+`initializationOptions.includePaths` appends further directories:
 
 ```json
-{ "initializationOptions": { "includePaths": ["/path/to/other/SafeC"] } }
+{ "initializationOptions": { "includePaths": ["/path/to/headers"] } }
 ```
-
-This is appended to (not a replacement for) the compiled-in default.
 
 ## Analysis Settings
 
@@ -81,19 +90,23 @@ use for it, so the server reports exactly what a build would:
 - **Features** — the nearest `Package.toml` above the file is read and its
   enabled `[features]` (starting from `default`) become
   `SAFEC_FEATURE_<NAME>=1`, as `safeguard build` defines them.
+- **Notes** — the compiler's notes on an error (`'b' declared here`,
+  `'b' was dropped here` for ownership errors, the thread a `spawn_scoped`
+  lends a value to) become the diagnostic's `relatedInformation`, plus a
+  Hint at the noted place pointing back.
 - **Headers** — diagnostics raised inside an `#include`d header are
   reported at the top of the document with the header's own file:line;
   go-to-definition on a library symbol opens the header; the outline lists
   only the document's own declarations. Hover shows full signatures with
-  source-level names (`generic<T> struct Vec<T> std::vec_new()`), and
-  completion offers `vec_new` rather than the mangled `std_vec_new`.
+  source-level names (`generic<T> int std::Vec::push(T value)`), and
+  completion offers `push` rather than the mangled `Vec_push`.
 
 Override any of it per workspace through `initializationOptions` (the VS
 Code extension maps its `safec.*` settings onto these):
 
 ```json
 { "initializationOptions": {
-    "includePaths": ["/path/to/other/SafeC"],
+    "includePaths": ["/path/to/headers"],
     "target": "arm-7em",
     "compatPreprocessor": true,
     "defines": { "BOARD_REV": "3" },
@@ -152,8 +165,8 @@ See `editors/vscode/` — sideload the extension:
 cd editors/vscode
 npm install
 npm install -g @vscode/vsce
-vsce package          # → safec-1.0.0.vsix
-code --install-extension safec-1.0.0.vsix
+vsce package          # → safec-analyzer-<version>.vsix
+code --install-extension safec-analyzer-*.vsix
 ```
 
 Set `"safec.server.path": "/path/to/sc-lsp"` in VS Code settings.
@@ -164,25 +177,13 @@ particular file, use "Change Language Mode" (bottom-right status bar, or
 `Cmd/Ctrl+K M`) to switch that file back to C/C++ — this is a per-file
 override, not a global setting.
 
-### Neovim (nvim-lspconfig)
+### Neovim (0.11+, built-in LSP)
 
 ```lua
-require("lspconfig.configs").safec = {
-  default_config = {
-    cmd = { "sc-lsp" },
-    filetypes = { "safec" },
-    root_dir = require("lspconfig.util").find_git_ancestor,
-  },
-}
-require("lspconfig").safec.setup({})
-
--- Associate .sc with safec filetype unconditionally.
-vim.filetype.add({ extension = { sc = "safec" } })
-
--- .h is ambiguous with plain C/C++ headers — only claim it inside a
--- SafeC project (Package.toml at or above the file), so C/C++ headers
--- elsewhere on your system are unaffected.
 vim.filetype.add({
+  extension = { sc = "safec", scx = "safec" },
+  -- .h is ambiguous with plain C/C++ headers: only claim it inside a
+  -- SafeC project (Package.toml at or above the file).
   pattern = {
     [".*%.h"] = function(path)
       return vim.fs.find("Package.toml", { upward = true, path = vim.fs.dirname(path) })[1]
@@ -190,19 +191,68 @@ vim.filetype.add({
     end,
   },
 })
+
+vim.lsp.config("sc_lsp", {
+  cmd = { "sc-lsp" },
+  filetypes = { "safec" },
+  root_markers = { "Package.toml", ".git" },
+  -- init_options = { target = "arm-7em", features = { "backend" } },
+})
+vim.lsp.enable("sc_lsp")
+
+-- Highlighting: C's syntax plus SafeC's own words.
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "safec",
+  callback = function()
+    vim.bo.syntax = "c"
+    vim.cmd([[
+      syn keyword safecKeyword region unsafe generic trait consteval constinit static_assert self operator new arena_reset arena_destroy arena_mark arena_free_to tuple namespace spawn join defer errdefer match packed try must_use fn fn_eval alignof typeof fieldcount naked interrupt section noreturn asm pure atomic newtype thread_local
+      syn keyword safecRegion stack heap arena static contained
+      syn match   safecRegionRef "?\=&\(stack\|heap\|arena\|static\)\>" contains=safecRegion
+      syn keyword safecContextual consume impl needs_drop drop forget spawn_scoped malloc_defer some none is_null is_none Send Sync
+      hi def link safecKeyword Keyword
+      hi def link safecRegion StorageClass
+      hi def link safecContextual Special
+    ]])
+  end,
+})
+```
+
+With nvim-lspconfig on Neovim < 0.11, register the same server:
+
+```lua
+require("lspconfig.configs").sc_lsp = {
+  default_config = {
+    cmd = { "sc-lsp" },
+    filetypes = { "safec" },
+    root_dir = require("lspconfig.util").root_pattern("Package.toml", ".git"),
+  },
+}
+require("lspconfig").sc_lsp.setup({})
 ```
 
 ### Emacs (Eglot)
 
 ```elisp
-(add-to-list 'auto-mode-alist '("\\.sc\\'" . c-mode))
-(add-to-list 'eglot-server-programs '(c-mode . ("sc-lsp")))
+;; A mode of its own (derived from c-mode), so sc-lsp serves SafeC files
+;; only and plain C buffers keep whatever server they had.
+(define-derived-mode safec-mode c-mode "SafeC"
+  "Major mode for SafeC (.sc, .scx)."
+  (font-lock-add-keywords
+   nil
+   `((,(regexp-opt '("region" "unsafe" "generic" "trait" "consteval" "constinit" "static_assert" "self" "operator" "new" "arena_reset" "arena_destroy" "arena_mark" "arena_free_to" "tuple" "namespace" "spawn" "join" "defer" "errdefer" "match" "packed" "try" "must_use" "fn" "fn_eval" "alignof" "typeof" "fieldcount" "naked" "interrupt" "section" "noreturn" "asm" "pure" "atomic" "newtype" "thread_local") 'symbols)
+      . font-lock-keyword-face)
+     (,(regexp-opt '("consume" "impl" "needs_drop" "drop" "forget" "spawn_scoped" "malloc_defer" "some" "none" "is_null" "is_none" "Send" "Sync") 'symbols)
+      . font-lock-builtin-face)
+     ("\\??&\\(stack\\|heap\\|arena\\|static\\)\\_>" 1 font-lock-type-face))))
 
-;; .h is ambiguous with plain C/C++ headers; c-mode is a reasonable
-;; default there already (SafeC is a C superset), so eglot-server-programs
-;; above already covers .h once you're in c-mode — no separate
-;; auto-mode-alist entry needed unless you use a different major mode
-;; for C headers than for .sc files.
+(add-to-list 'auto-mode-alist '("\\.scx?\\'" . safec-mode))
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs '(safec-mode . ("sc-lsp"))))
+(add-hook 'safec-mode-hook #'eglot-ensure)
+
+;; .h is ambiguous with C headers: switch a SafeC header with
+;; M-x safec-mode, or give it a first line of  // -*- mode: safec -*-
 ```
 
 ## Architecture
