@@ -123,7 +123,12 @@
         },
         {
           "name": "keyword.other.safec",
-          "match": "\\b(region|unsafe|generic|new|arena_reset|spawn|join|operator|self|static_assert|capacity|pure|must_use|noreturn|naked|interrupt|section|asm|fn)\\b"
+          "match": "\\b(region|unsafe|generic|trait|new|arena_reset|arena_destroy|arena_mark|arena_free_to|spawn|join|operator|self|static_assert|capacity|pure|must_use|noreturn|naked|interrupt|section|asm|fn|fn_eval)\\b"
+        },
+        {
+          "comment": "Ownership / thread-safety markers (contextual words): 'R m() consume;' methods, 'unsafe impl Send + Sync;' and 'impl !Send;' in a struct body.",
+          "name": "storage.modifier.ownership.safec",
+          "match": "\\bconsume\\b(?=\\s*[;{])|\\bimpl\\b(?=\\s*!?\\s*(?:Send|Sync)\\b)"
         },
         {
           "name": "storage.modifier.safec",
@@ -147,7 +152,7 @@
       "patterns": [
         {
           "name": "support.function.builtin.safec",
-          "match": "\\b(volatile_load|volatile_store|atomic_load|atomic_store|atomic_fetch_add|atomic_fetch_sub|atomic_fetch_and|atomic_fetch_or|atomic_fetch_xor|atomic_exchange|atomic_cas|atomic_compare_exchange_strong|atomic_fence|chan_create|chan_send|chan_recv|chan_close|spawn_scoped|__builtin_popcount|__builtin_popcountll|__builtin_clz|__builtin_clzll|__builtin_ctz|__builtin_ctzll|__builtin_bswap32|__builtin_bswap64|__builtin_fmuladd|__builtin_sqrt|__arm_dsp_[a-z0-9]+)\\b"
+          "match": "\\b(volatile_load|volatile_store|atomic_load|atomic_store|atomic_fetch_add|atomic_fetch_sub|atomic_fetch_and|atomic_fetch_or|atomic_fetch_xor|atomic_exchange|atomic_cas|atomic_compare_exchange_strong|atomic_fence|chan_create|chan_send|chan_recv|chan_close|spawn_scoped|__builtin_popcount|__builtin_popcountll|__builtin_clz|__builtin_clzll|__builtin_ctz|__builtin_ctzll|__builtin_bswap32|__builtin_bswap64|__builtin_fmuladd|__builtin_sqrt|__arm_dsp_[a-z0-9]+|needs_drop|forget|malloc_defer)\\b"
         }
       ]
     },
@@ -159,7 +164,7 @@
         },
         {
           "name": "support.type.primitive.safec",
-          "match": "\\b(void|bool|char|int|float|double|float32|float64|int8|int16|int32|int64|uint8|uint16|uint32|uint64|long|short|unsigned|signed|size_t|ptrdiff_t)\\b"
+          "match": "\\b(void|bool|char|int|float|double|int8_t|int16_t|int32_t|int64_t|uint8_t|uint16_t|uint32_t|uint64_t|long|short|unsigned|signed|size_t|ptrdiff_t)\\b"
         },
         {
           "name": "support.type.simd.safec",

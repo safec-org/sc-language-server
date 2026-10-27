@@ -3,6 +3,7 @@
 #include "Transport.h"
 #include "Protocol.h"
 #include <cstdio>
+#include <deque>
 
 namespace lsp {
 
@@ -10,61 +11,112 @@ namespace lsp {
 static constexpr int TEXT_SYNC_FULL = 1;
 
 // ── run ──────────────────────────────────────────────────────────────────────
+// Whether a later queued message replaces document 'uri' wholesale
+// (full-sync didChange, or didClose), making an analysis of it now moot.
+static bool superseded(const std::deque<json> &queue, const std::string &uri) {
+    for (const auto &m : queue) {
+        if (!m.contains("method") || !m["method"].is_string()) continue;
+        const std::string &meth = m["method"].get_ref<const std::string &>();
+        if (meth != "textDocument/didChange" && meth != "textDocument/didClose") continue;
+        auto p = m.find("params");
+        if (p == m.end() || !p->is_object()) continue;
+        auto td = p->find("textDocument");
+        if (td != p->end() && td->is_object() && td->value("uri", "") == uri) return true;
+    }
+    return false;
+}
+
 void Server::run() {
+    std::deque<json> queue;
     while (true) {
-        auto msg = readMessage();
+        std::optional<json> msg;
+        if (!queue.empty()) {
+            msg = std::move(queue.front());
+            queue.pop_front();
+        } else {
+            msg = readMessage();
+        }
         if (!msg) {
-            // EOF or parse error — exit cleanly
+            // EOF — exit cleanly
             break;
         }
+        if (!msg->is_object()) continue;
 
-        // Every JSON-RPC message has a method
-        if (!msg->contains("method")) continue;
-        std::string method = (*msg)["method"].get<std::string>();
-
-        // id may be absent (notifications)
-        json id = msg->contains("id") ? (*msg)["id"] : json{};
-        json params = msg->contains("params") ? (*msg)["params"] : json::object();
-
-        // ── Requests (have id) ────────────────────────────────────────────────
-        if (msg->contains("id")) {
-            json response;
-            if (method == "initialize") {
-                response = handleInitialize(id, params);
-            } else if (method == "shutdown") {
-                response = handleShutdown(id);
-            } else if (method == "textDocument/hover") {
-                response = handleHover(id, params);
-            } else if (method == "textDocument/completion") {
-                response = handleCompletion(id, params);
-            } else if (method == "textDocument/definition") {
-                response = handleDefinition(id, params);
-            } else if (method == "textDocument/documentSymbol") {
-                response = handleDocumentSymbols(id, params);
-            } else {
-                // Unknown method — return null result (not an error)
-                response = makeResult(id, json{});
+        // An edit that the client has already followed with another one
+        // isn't analyzed (an analysis can take a while on a big file; typing
+        // shouldn't queue one per keystroke): its text is kept, so requests
+        // in between see the newest text, and the newer edit publishes.
+        if (msg->value("method", "") == "textDocument/didChange") {
+            while (inputPending()) {
+                auto next = readMessage();
+                if (!next) break;
+                queue.push_back(std::move(*next));
             }
-            writeMessage(response);
-        } else {
-            // ── Notifications (no id) ─────────────────────────────────────────
-            if (method == "initialized") {
-                handleInitialized(params);
-            } else if (method == "exit") {
-                handleExit();
-                return;
-            } else if (method == "textDocument/didOpen") {
-                handleDidOpen(params);
-            } else if (method == "textDocument/didChange") {
-                handleDidChange(params);
-            } else if (method == "textDocument/didClose") {
-                handleDidClose(params);
-            } else if (method == "textDocument/didSave") {
-                handleDidSave(params);
+            try {
+                const auto &p = msg->at("params");
+                std::string uri = p.at("textDocument").at("uri").get<std::string>();
+                if (superseded(queue, uri) && !p.at("contentChanges").empty()) {
+                    docs_[uri].uri  = uri;
+                    docs_[uri].text = p.at("contentChanges").back().at("text").get<std::string>();
+                    continue;
+                }
+            } catch (...) {
+                // Malformed: handled (and ignored) like any other below.
             }
         }
 
-        if (shutdownRequested_ && method == "exit") return;
+        // A malformed message (a missing field .at() throws on) is answered
+        // with an error or, for a notification, dropped - not a crash.
+        try {
+            // Every JSON-RPC message has a method
+            if (!msg->contains("method")) continue;
+            std::string method = (*msg)["method"].get<std::string>();
+
+            // id may be absent (notifications)
+            json id = msg->contains("id") ? (*msg)["id"] : json{};
+            json params = msg->contains("params") ? (*msg)["params"] : json::object();
+
+            // ── Requests (have id) ────────────────────────────────────────────────
+            if (msg->contains("id")) {
+                json response;
+                if (method == "initialize") {
+                    response = handleInitialize(id, params);
+                } else if (method == "shutdown") {
+                    response = handleShutdown(id);
+                } else if (method == "textDocument/hover") {
+                    response = handleHover(id, params);
+                } else if (method == "textDocument/completion") {
+                    response = handleCompletion(id, params);
+                } else if (method == "textDocument/definition") {
+                    response = handleDefinition(id, params);
+                } else if (method == "textDocument/documentSymbol") {
+                    response = handleDocumentSymbols(id, params);
+                } else {
+                    response = makeError(id, -32601, "method not found: " + method);
+                }
+                writeMessage(response);
+            } else {
+                // ── Notifications (no id) ─────────────────────────────────────────
+                if (method == "initialized") {
+                    handleInitialized(params);
+                } else if (method == "exit") {
+                    handleExit();
+                    return;
+                } else if (method == "textDocument/didOpen") {
+                    handleDidOpen(params);
+                } else if (method == "textDocument/didChange") {
+                    handleDidChange(params);
+                } else if (method == "textDocument/didClose") {
+                    handleDidClose(params);
+                } else if (method == "textDocument/didSave") {
+                    handleDidSave(params);
+                }
+            }
+        } catch (const std::exception &e) {
+            if (msg->contains("id") && msg->contains("method"))
+                writeMessage(makeError((*msg)["id"], -32602, std::string("invalid params: ") + e.what()));
+            continue;
+        }
     }
 }
 
@@ -108,7 +160,7 @@ json Server::handleInitialize(const json &id, const json &params) {
         {"capabilities", caps},
         {"serverInfo", {
             {"name", "sc-lsp"},
-            {"version", "0.1.0"}
+            {"version", SC_LSP_VERSION}
         }}
     };
     return makeResult(id, result);
@@ -227,23 +279,6 @@ json Server::handleDocumentSymbols(const json &id, const json &params) {
 static bool hasExtension(const std::string &uri, const std::string &ext) {
     if (uri.size() < ext.size()) return false;
     return uri.compare(uri.size() - ext.size(), ext.size(), ext) == 0;
-}
-
-// file:///a%20b/c.sc -> /a b/c.sc (Windows drive letters keep their colon).
-static std::string uriToPath(const std::string &uri) {
-    std::string s = uri.rfind("file://", 0) == 0 ? uri.substr(7) : uri;
-    std::string out;
-    for (size_t i = 0; i < s.size(); ++i) {
-        if (s[i] == '%' && i + 2 < s.size() &&
-            std::isxdigit((unsigned char)s[i + 1]) && std::isxdigit((unsigned char)s[i + 2])) {
-            out += (char)std::stoi(s.substr(i + 1, 2), nullptr, 16);
-            i += 2;
-        } else {
-            out += s[i];
-        }
-    }
-    if (out.size() > 2 && out[0] == '/' && out[2] == ':') out.erase(0, 1);   // /C:/x -> C:/x
-    return out;
 }
 
 void Server::analyzeAndPublish(const std::string &uri, const std::string &text) {

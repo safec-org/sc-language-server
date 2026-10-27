@@ -1,8 +1,8 @@
 {
   "name": "safec-analyzer",
   "displayName": "SafeC Analyzer",
-  "description": "Language support for SafeC (.sc, .scx files): syntax highlighting, diagnostics, hover, completion, and go-to-definition via sc-lsp.",
-  "version": "1.4.0",
+  "description": "Language support for SafeC (.sc, .scx files): syntax highlighting, snippets, diagnostics, hover, completion, and go-to-definition via sc-lsp.",
+  "version": "1.5.0",
   "publisher": "MinjaeKim",
   "license": "MIT",
   "repository": {
@@ -39,6 +39,12 @@
           "light": "./icons/sc-file-icon.png",
           "dark": "./icons/sc-file-icon.png"
         }
+      }
+    ],
+    "snippets": [
+      {
+        "language": "safec",
+        "path": "./snippets/safec.json"
       }
     ],
     "grammars": [
@@ -87,7 +93,7 @@
             "type": "string"
           },
           "default": [],
-          "description": "Extra -I directories (the SafeC root sc-lsp was built against is always searched)."
+          "description": "Extra -I directories. The SafeC root ($SAFEC_HOME, or the installation sc-lsp runs from) and a Package.toml project's include/ and dependency headers are always searched, as safeguard does."
         },
         "safec.target": {
           "type": "string",

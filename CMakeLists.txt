@@ -1,11 +1,15 @@
 cmake_minimum_required(VERSION 3.20)
-project(sc-language-server VERSION 0.1.0 LANGUAGES CXX)
+project(sc-language-server VERSION 1.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SAFEC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../SafeC/compiler"
     CACHE PATH "SafeC compiler source directory")
-set(SAFEGUARD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../SafeC/safeguard"
+# Defaults to the safeguard/ beside SAFEC_DIR (both live in the SafeC
+# repo), so -DSAFEC_DIR=<SafeC>/compiler alone is enough wherever the
+# checkout is.
+get_filename_component(SAFEGUARD_DIR_DEFAULT "${SAFEC_DIR}/../safeguard" ABSOLUTE)
+set(SAFEGUARD_DIR "${SAFEGUARD_DIR_DEFAULT}"
     CACHE PATH "safeguard source directory (for the .scx transpiler)")
 
 # ── SafeC frontend static library (no LLVM needed) ──────────────────────────
@@ -32,6 +36,8 @@ endforeach()
 
 add_library(safec_frontend STATIC ${SAFEC_FRONTEND_SOURCES})
 target_include_directories(safec_frontend PUBLIC ${SAFEC_DIR}/include)
+# CHeaderImporterStub.cpp's configuration hook (CHeaderBridge.h).
+target_include_directories(safec_frontend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(MSVC)
     target_compile_options(safec_frontend PRIVATE /W3 /EHs-c- /GR-)
 else()
@@ -79,10 +85,14 @@ target_link_libraries(sc-lsp PRIVATE safec_frontend nlohmann_json)
 # ".../std/std/collections/vec.h". Without this, the preprocessor has no
 # include path pointing at std/ at all, so every stdlib header fails to
 # resolve and analysis on any file that includes one stops at the #include
-# line. Server.cpp seeds Server::includeDirs_ with this path; a client can
-# still extend it via initializationOptions.includePaths.
+# line. This is the last resort of ProjectConfig.cpp's safecRoot(), after
+# $SAFEC_HOME and the installation sc-lsp runs from (<prefix>/bin/sc-lsp
+# beside <prefix>/std) — the path baked in here only exists on the machine
+# that built the binary. A client can extend the include path via
+# initializationOptions.includePaths.
 get_filename_component(SAFEC_STD_DIR_DEFAULT "${SAFEC_DIR}/.." ABSOLUTE)
-target_compile_definitions(sc-lsp PRIVATE SAFEC_STD_DIR="${SAFEC_STD_DIR_DEFAULT}")
+target_compile_definitions(sc-lsp PRIVATE SAFEC_STD_DIR="${SAFEC_STD_DIR_DEFAULT}"
+                                         SC_LSP_VERSION="${PROJECT_VERSION}")
 if(MSVC)
     target_compile_options(sc-lsp PRIVATE /W3)
 else()

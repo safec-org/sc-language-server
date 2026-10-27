@@ -12,6 +12,8 @@ using json = nlohmann::json;
 // writeMessage() writes Content-Length + CRLF + body to stdout.
 
 std::optional<json> readMessage();
+// True when more input is already waiting (another message, most likely).
+bool                inputPending();
 void                writeMessage(const json &msg);
 
 // Convenience: build a result reply.

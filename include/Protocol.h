@@ -45,19 +45,35 @@ struct Location {
 
 enum class DiagnosticSeverity { Error = 1, Warning = 2, Information = 3, Hint = 4 };
 
+struct DiagnosticRelatedInformation {
+    Location    location;
+    std::string message;
+
+    json toJson() const { return {{"location", location.toJson()}, {"message", message}}; }
+};
+
 struct Diagnostic {
     Range             range;
     DiagnosticSeverity severity = DiagnosticSeverity::Error;
     std::string       message;
     std::string       source = "safec";
+    // The compiler's notes on it ("'b' was dropped here"), or for a note
+    // shown on its own, the diagnostic it explains.
+    std::vector<DiagnosticRelatedInformation> related;
 
     json toJson() const {
-        return {
+        json j = {
             {"range",    range.toJson()},
             {"severity", static_cast<int>(severity)},
             {"message",  message},
             {"source",   source}
         };
+        if (!related.empty()) {
+            json r = json::array();
+            for (const auto &ri : related) r.push_back(ri.toJson());
+            j["relatedInformation"] = r;
+        }
+        return j;
     }
 };
 
@@ -100,17 +116,20 @@ enum class SymbolKind {
 
 struct DocumentSymbol {
     std::string name;
+    std::string detail;   // the signature
     SymbolKind  kind  = SymbolKind::Variable;
     Range       range;
     Range       selectionRange;
 
     json toJson() const {
-        return {
+        json j = {
             {"name",            name},
             {"kind",            static_cast<int>(kind)},
             {"range",           range.toJson()},
             {"selectionRange",  selectionRange.toJson()}
         };
+        if (!detail.empty()) j["detail"] = detail;
+        return j;
     }
 };
 

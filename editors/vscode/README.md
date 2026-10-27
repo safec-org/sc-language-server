@@ -18,8 +18,14 @@ Sema → ConstEval`), so it understands exactly what the compiler understands
   C-superset surface (bitfields, designated initializers, `_Generic`,
   compound literals, `__attribute__`).
 - **Real-time diagnostics** — errors and warnings from the actual compiler
-  pipeline as you type, not a separate linter's approximation.
-- **Hover** — type information for top-level symbols.
+  pipeline as you type, not a separate linter's approximation — including
+  ownership (Drop) and thread-safety (Send/Sync) errors, with the
+  compiler's notes ("'b' was dropped here") as related information.
+- **Hover** — signatures of functions, methods (`File::close`) and
+  structs, including the standard library's.
+- **Snippets** — `mainvec`, `string`, `dropstruct`, `consume`,
+  `genericdrop`, `impl` (Send/Sync markers), `matchsome`, `matchref`,
+  `forslice`, `spawnscoped`, `unsafe`.
 - **Completion** — every in-scope symbol, plus SafeC keywords and built-ins
   (atomics, volatile MMIO access, bit-manipulation intrinsics, ARM Cortex-M
   DSP-extension intrinsics).

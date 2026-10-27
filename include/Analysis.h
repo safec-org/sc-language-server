@@ -15,7 +15,7 @@ namespace lsp {
 
 // ── SymbolInfo ───────────────────────────────────────────────────────────────
 
-enum class SymKind { Function, Struct, Enum, GlobalVar, TypeAlias, Newtype, Region };
+enum class SymKind { Function, Method, Struct, Enum, GlobalVar, TypeAlias, Newtype, Region };
 
 struct SymbolInfo {
     std::string name;
@@ -23,6 +23,8 @@ struct SymbolInfo {
     SymKind     kind       = SymKind::GlobalVar;
     Position    pos;       // 0-based line/col of declaration
     std::string docUri;    // document URI this symbol belongs to
+    std::string owner;     // a method's struct ("Vec" for Vec::push), else ""
+    bool        hasBody = false;   // a function definition, not a declaration
 };
 
 // ── AnalysisResult ───────────────────────────────────────────────────────────
