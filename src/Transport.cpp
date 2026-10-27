@@ -50,7 +50,9 @@ std::optional<json> readMessage() {
 // ── writeMessage ─────────────────────────────────────────────────────────────
 
 void writeMessage(const json &msg) {
-    std::string body = msg.dump();
+    // Invalid UTF-8 (a Latin-1 source quoted in a diagnostic, say) becomes
+    // U+FFFD rather than an exception that would take the server down.
+    std::string body = msg.dump(-1, ' ', false, json::error_handler_t::replace);
     fprintf(stdout, "Content-Length: %zu\r\n\r\n%s", body.size(), body.c_str());
     fflush(stdout);
 }

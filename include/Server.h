@@ -47,15 +47,10 @@ private:
     // ── State ─────────────────────────────────────────────────────────────────
     std::unordered_map<std::string, DocumentState> docs_;
     bool shutdownRequested_ = false;
-    // Workspace settings (initializationOptions, see ProjectConfig.h).
-    // includeDirs starts with the compiled-in SafeC root (SAFEC_STD_DIR, the
-    // parent of std/, set by CMakeLists.txt) so '#include <std/...>'
-    // resolves out of the box; includePaths extends it.
-    ServerSettings settings_{
-#ifdef SAFEC_STD_DIR
-        {SAFEC_STD_DIR}
-#endif
-    };
+    // Workspace settings (initializationOptions, see ProjectConfig.h). The
+    // SafeC root (for '#include <std/...>') isn't part of them: optionsFor()
+    // finds it per analysis (safecRoot()), and includePaths only extends it.
+    ServerSettings settings_;
 };
 
 } // namespace lsp

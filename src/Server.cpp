@@ -108,7 +108,7 @@ json Server::handleInitialize(const json &id, const json &params) {
         {"capabilities", caps},
         {"serverInfo", {
             {"name", "sc-lsp"},
-            {"version", "0.1.0"}
+            {"version", SC_LSP_VERSION}
         }}
     };
     return makeResult(id, result);
@@ -227,23 +227,6 @@ json Server::handleDocumentSymbols(const json &id, const json &params) {
 static bool hasExtension(const std::string &uri, const std::string &ext) {
     if (uri.size() < ext.size()) return false;
     return uri.compare(uri.size() - ext.size(), ext.size(), ext) == 0;
-}
-
-// file:///a%20b/c.sc -> /a b/c.sc (Windows drive letters keep their colon).
-static std::string uriToPath(const std::string &uri) {
-    std::string s = uri.rfind("file://", 0) == 0 ? uri.substr(7) : uri;
-    std::string out;
-    for (size_t i = 0; i < s.size(); ++i) {
-        if (s[i] == '%' && i + 2 < s.size() &&
-            std::isxdigit((unsigned char)s[i + 1]) && std::isxdigit((unsigned char)s[i + 2])) {
-            out += (char)std::stoi(s.substr(i + 1, 2), nullptr, 16);
-            i += 2;
-        } else {
-            out += s[i];
-        }
-    }
-    if (out.size() > 2 && out[0] == '/' && out[2] == ':') out.erase(0, 1);   // /C:/x -> C:/x
-    return out;
 }
 
 void Server::analyzeAndPublish(const std::string &uri, const std::string &text) {
